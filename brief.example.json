@@ -1,0 +1,16 @@
+{
+  "schema": "VerdexBrief/v1",
+  "scope": {
+    "include": ["*.example.com"],
+    "exclude": ["dev.example.com"]
+  },
+  "vuln_classes": ["sql", "ssrf", "xss"],
+  "osint": {
+    "enabled": true,
+    "categories": ["email", "phone", "social-profile", "person-name", "username"],
+    "reveal": false
+  },
+  "min_confidence": "medium",
+  "redlines": ["no-payload", "no-bruteforce", "no-out-of-scope"],
+  "allow": ["read_workspace", "parse_artifacts"]
+}

@@ -1,0 +1,16 @@
+# Verdex MCP server as a dsh MCP-client plugin instance.
+# 1) Replace the path below with the absolute path to this repo's src/cli.js.
+# 2) Apply with: dsh web --patch /path/to/verdex-mcp.patch.yml
+#    (or append the `- insert:` block to your profile's cordis.patch.yml)
+# Exposes mcp__verdex__scan / mcp__verdex__bin_decompile / ... to the model.
+- insert:
+    - id: mcp-verdex
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: verdex
+        transport: stdio
+        command: node
+        args:
+          - '/path/to/verdex/src/cli.js'
+          - mcp
+        toolCallTimeoutMs: 300000

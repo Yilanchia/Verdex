@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>Verdex Workbench</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">V</div>
+          <div>
+            <div class="brand-name">VERDEX</div>
+            <div class="brand-subtitle">证据优先工作台</div>
+          </div>
+        </div>
+
+        <div class="local-badge"><span class="status-dot"></span>LOCAL ONLY</div>
+
+        <section class="control-section">
+          <div class="section-label">分析作业</div>
+          <label class="field-label" for="root-input">工作目录</label>
+          <div class="input-action-row"><input id="root-input" class="text-input" type="text" spellcheck="false" placeholder="D:\path\to\target"><button id="choose-directory-button" class="icon-button" type="button" title="选择本地工作目录" aria-label="选择本地工作目录">⌂</button></div>
+          <label class="field-label" for="brief-input">Brief（可选）</label>
+          <input id="brief-input" class="text-input" type="text" spellcheck="false" placeholder="D:\path\to\brief.json">
+          <label class="field-label" for="manual-assets-input">手动资产（每行一个）</label>
+          <textarea id="manual-assets-input" class="text-input textarea-input" spellcheck="false" placeholder="api.example.com&#10;https://admin.example.com&#10;192.0.2.10"></textarea>
+          <button id="analyze-button" class="primary-button" type="button">
+            <span class="button-icon">↗</span>
+            开始分析
+          </button>
+          <button id="example-button" class="ghost-button" type="button">载入工作台示例</button>
+        </section>
+
+        <section class="control-section compact">
+          <div class="section-label">运行状态</div>
+          <div class="run-status">
+            <span id="status-dot" class="status-dot muted"></span>
+            <span id="status-text">等待分析</span>
+          </div>
+          <div id="run-time" class="muted-text">尚未运行</div>
+        </section>
+
+        <div class="sidebar-footer">
+          <div class="footer-line"><span class="footer-key">ENGINE</span><span>VerdexProject/v1</span></div>
+          <div class="footer-line"><span class="footer-key">MODE</span><span>PASSIVE / LOCAL</span></div>
+          <div class="footer-line"><span class="footer-key">PRIVACY</span><span>REDACTED</span></div>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div>
+            <div class="eyebrow">SECURITY RESEARCH DESK <span class="eyebrow-line"></span></div>
+            <h1>把线索变成证据。</h1>
+            <p class="lede">资产、代码关系、数据流和本地 OSINT 汇聚在同一条可复核链路里。</p>
+          </div>
+          <div class="topbar-meta">
+            <div class="topbar-pill"><span class="status-dot"></span>脱网分析</div>
+            <div id="analysis-id" class="analysis-id">ANALYSIS / —</div>
+            <button id="save-run-button" class="outline-button" type="button" disabled><span class="button-icon">↓</span>保存快照</button>
+            <div id="save-run-result" class="save-run-result">分析完成后可保存证据快照</div>
+          </div>
+        </header>
+
+        <div id="error-banner" class="error-banner hidden"></div>
+
+        <section class="metric-grid">
+          <article class="metric-card accent-cyan">
+            <div class="metric-top"><span>工作区文件</span><span class="metric-icon">▦</span></div>
+            <div id="metric-files" class="metric-value">—</div>
+            <div id="metric-files-note" class="metric-note">等待工作区</div>
+          </article>
+          <article class="metric-card accent-violet">
+            <div class="metric-top"><span>资产记录</span><span class="metric-icon">◉</span></div>
+            <div id="metric-assets" class="metric-value">—</div>
+            <div id="metric-assets-note" class="metric-note">URL / Host / IP</div>
+          </article>
+          <article class="metric-card accent-amber">
+            <div class="metric-top"><span>OSINT 观察</span><span class="metric-icon">⌁</span></div>
+            <div id="metric-osint" class="metric-value">—</div>
+            <div id="metric-osint-note" class="metric-note">默认脱敏</div>
+          </article>
+          <article class="metric-card accent-red">
+            <div class="metric-top"><span>待复核候选</span><span class="metric-icon">!</span></div>
+            <div id="metric-findings" class="metric-value">—</div>
+            <div id="metric-findings-note" class="metric-note">静态推断</div>
+          </article>
+        </section>
+
+        <nav class="tabs" aria-label="分析视图">
+          <button class="tab active" data-tab="overview" type="button">总览</button>
+          <button class="tab" data-tab="assets" type="button">资产面 <span id="asset-tab-count" class="tab-count">0</span></button>
+          <button class="tab" data-tab="osint" type="button">OSINT <span id="osint-tab-count" class="tab-count">0</span></button>
+          <button class="tab" data-tab="findings" type="button">漏洞候选 <span id="finding-tab-count" class="tab-count">0</span></button>
+          <button class="tab" data-tab="personal" type="button">个人查找</button>
+          <button class="tab" data-tab="ai" type="button">AI 设置</button>
+        </nav>
+
+        <section id="panel-overview" class="tab-panel active">
+          <div class="content-grid">
+            <article class="panel-card wide">
+              <div class="panel-heading">
+                <div>
+                  <div class="panel-kicker">EVIDENCE PIPELINE</div>
+                  <h2>分析覆盖</h2>
+                </div>
+                <span id="coverage-status" class="state-pill">—</span>
+              </div>
+              <div id="coverage-list" class="coverage-list">
+                <div class="empty-state">运行分析后显示覆盖情况。</div>
+              </div>
+            </article>
+            <article class="panel-card">
+              <div class="panel-heading">
+                <div>
+                  <div class="panel-kicker">GUARDRAILS</div>
+                  <h2>边界与红线</h2>
+                </div>
+                <span class="shield-icon">◇</span>
+              </div>
+              <div id="guardrail-list" class="guardrail-list">
+                <div class="guardrail"><span class="check">✓</span><span>仅读取本地工作目录</span></div>
+                <div class="guardrail"><span class="check">✓</span><span>OSINT 默认脱敏</span></div>
+                <div class="guardrail"><span class="check">✓</span><span>不生成载荷或攻击步骤</span></div>
+                <div class="guardrail"><span class="check">✓</span><span>静态候选需人工复核</span></div>
+              </div>
+            </article>
+          </div>
+          <div class="content-grid lower-grid">
+            <article class="panel-card">
+              <div class="panel-heading">
+                <div>
+                  <div class="panel-kicker">SIGNALS</div>
+                  <h2>最近线索</h2>
+                </div>
+                <button class="link-button" data-open-tab="findings" type="button">查看全部 →</button>
+              </div>
+              <div id="signal-list" class="signal-list"><div class="empty-state">暂无线索。</div></div>
+            </article>
+            <article class="panel-card">
+              <div class="panel-heading">
+                <div>
+                  <div class="panel-kicker">WORKSPACE</div>
+                  <h2>工作目录</h2>
+                </div>
+              </div>
+              <div id="workspace-card" class="workspace-card">
+                <div class="workspace-path">等待分析</div>
+                <div class="workspace-hash"><span class="hash-dot"></span>证据哈希将在分析后显示</div>
+              </div>
+            </article>
+          </div>
+          <article class="panel-card run-history-card">
+            <div class="panel-heading">
+              <div>
+                <div class="panel-kicker">IMMUTABLE RUNS</div>
+                <h2>运行记录</h2>
+              </div>
+              <button id="refresh-runs-button" class="link-button" type="button">刷新</button>
+            </div>
+            <div id="run-history" class="run-history"><div class="empty-state">尚未保存分析快照。</div></div>
+          </article>
+        </section>
+
+        <section id="panel-assets" class="tab-panel">
+          <div class="panel-card">
+            <div class="panel-heading">
+              <div>
+                <div class="panel-kicker">ATTACK SURFACE / PASSIVE</div>
+                <h2>资产面</h2>
+              </div>
+              <span id="asset-scope-state" class="state-pill">未配置范围</span>
+            </div>
+            <div id="asset-groups" class="asset-groups"><div class="empty-state">运行分析后显示资产。</div></div>
+          </div>
+        </section>
+
+        <section id="panel-osint" class="tab-panel">
+          <div class="panel-card">
+            <div class="panel-heading">
+              <div>
+                <div class="panel-kicker">LOCAL OSINT / REDACTED</div>
+                <h2>个人信息线索</h2>
+              </div>
+              <span id="osint-privacy-state" class="state-pill safe">脱敏模式</span>
+            </div>
+            <div class="privacy-note"><span class="note-mark">i</span><span>只展示工作目录中已有文件的显式标识符。结果代表文件证据，不代表身份归属或当前有效性。</span></div>
+            <div id="osint-groups" class="osint-groups"><div class="empty-state">运行分析后显示 OSINT 观察。</div></div>
+          </div>
+        </section>
+
+        <section id="panel-findings" class="tab-panel">
+          <div class="panel-card">
+            <div class="panel-heading">
+              <div>
+                <div class="panel-kicker">STATIC REVIEW QUEUE</div>
+                <h2>待人工复核候选</h2>
+              </div>
+              <span class="state-pill warning">INFERRED</span>
+            </div>
+            <div class="finding-toolbar">
+              <span id="finding-selection-summary" class="result-summary">已选 0 条</span>
+              <div class="finding-toolbar-actions"><button id="findings-select-all" class="link-button" type="button">全选</button><button id="findings-clear" class="link-button" type="button">清除</button></div>
+            </div>
+            <div id="finding-list" class="finding-list"><div class="empty-state">运行分析后显示候选。</div></div>
+          </div>
+        </section>
+
+        <section id="panel-personal" class="tab-panel">
+          <div class="panel-card">
+            <div class="panel-heading">
+              <div>
+                <div class="panel-kicker">LOCAL PERSONAL SEARCH / EXACT MATCH</div>
+                <h2>已知信息查找</h2>
+              </div>
+              <span id="personal-privacy-state" class="state-pill safe">脱敏模式</span>
+            </div>
+            <div class="privacy-note"><span class="note-mark">i</span><span>输入已知的邮箱、手机号、用户名、姓名或资料链接，在当前工作目录中做精确文本查找。不会访问互联网，也不会做身份推断。</span></div>
+            <div class="search-form-grid">
+              <div>
+                <label class="field-label" for="personal-query-input">已知信息（每行一项）</label>
+                <textarea id="personal-query-input" class="text-input large-textarea" spellcheck="false" placeholder="someone@example.com&#10;13812345678&#10;github-user"></textarea>
+              </div>
+              <div class="search-actions">
+                <label class="toggle-row"><input id="personal-reveal" type="checkbox"><span>显示原值</span></label>
+                <button id="personal-search-button" class="primary-button" type="button"><span class="button-icon">⌕</span>开始查找</button>
+              </div>
+            </div>
+            <div id="personal-result-summary" class="result-summary">尚未执行查找</div>
+            <div id="personal-result-list" class="personal-result-list"><div class="empty-state">输入信息后，结果会按文件和行号展示。</div></div>
+          </div>
+        </section>
+
+        <section id="panel-ai" class="tab-panel">
+          <div class="content-grid">
+            <article class="panel-card">
+              <div class="panel-heading">
+                <div>
+                  <div class="panel-kicker">MODEL CONNECTION / LOCAL CONFIG</div>
+                  <h2>模型接入设置</h2>
+                </div>
+                <span id="ai-status-pill" class="state-pill">未配置</span>
+              </div>
+              <div class="ai-form">
+                <label class="toggle-row"><input id="ai-enabled" type="checkbox"><span>启用 AI 复核能力</span></label>
+                <div class="ai-presets">
+                  <span class="ai-presets-label">快速预设</span>
+                  <button class="preset-chip" type="button" data-preset="deepseek-pro">DeepSeek V4 Pro</button>
+                  <button class="preset-chip" type="button" data-preset="deepseek-flash">DeepSeek V4 Flash</button>
+                  <button class="preset-chip" type="button" data-preset="ollama">本地 Ollama</button>
+                </div>
+                <label class="field-label" for="ai-provider">Provider</label>
+                <input id="ai-provider" class="text-input" type="text" value="openai-compatible" spellcheck="false">
+                <label class="field-label" for="ai-base-url">Base URL</label>
+                <input id="ai-base-url" class="text-input" type="url" placeholder="http://127.0.0.1:11434/v1" spellcheck="false">
+                <label class="field-label" for="ai-model">模型名称</label>
+                <input id="ai-model" class="text-input" type="text" placeholder="deepseek-v4-pro / qwen2.5:7b" spellcheck="false">
+                <p id="ai-preset-hint" class="ai-preset-hint"></p>
+                <label class="field-label" for="ai-api-key">API Key（可选，仅本次服务进程）</label>
+                <input id="ai-api-key" class="text-input" type="password" placeholder="保存后不会回显" spellcheck="false">
+                <label class="toggle-row network-toggle"><input id="ai-network" type="checkbox"><span>允许用户主动发起模型网络请求</span></label>
+                <button id="ai-save-button" class="primary-button" type="button"><span class="button-icon">✓</span>保存设置</button>
+              </div>
+            </article>
+            <article class="panel-card">
+              <div class="panel-heading">
+                <div>
+                  <div class="panel-kicker">ASSISTED REVIEW</div>
+                  <h2>证据复核</h2>
+                </div>
+                <span class="shield-icon">◇</span>
+              </div>
+              <p class="ai-copy">AI 只接收你主动提交的候选证据，用于整理风险、依据和不确定性。不会自动扫描、不会自动联网，也不会生成载荷。</p>
+              <button id="ai-review-button" class="ghost-button" type="button">复核当前候选</button>
+              <div id="ai-review-result" class="ai-review-result">保存模型设置后可执行复核。</div>
+            </article>
+          </div>
+        </section>
+
+        <footer class="main-footer">
+          <span>Verdex Workbench / Evidence-first local analysis</span>
+          <span id="footer-generated">—</span>
+        </footer>
+      </main>
+    </div>
+    <script src="/app.js"></script>
+  </body>
+</html>

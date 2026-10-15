@@ -1,0 +1,21 @@
+{
+  "name": "verdex-workbench",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Evidence-first local vulnerability research workbench",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "selfcheck": "node --test tests/*.test.mjs",
+    "map": "node src/cli.js map .",
+    "osint": "node src/cli.js osint .",
+    "scan": "node src/cli.js scan .",
+    "start": "node src/server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "typescript": "5.9.3"
+  }
+}

@@ -1,0 +1,5 @@
+node_modules/
+.verdex/
+__pycache__/
+*.pyc
+.env
