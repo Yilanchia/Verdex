@@ -127,14 +127,76 @@ function findIda() {
   return null;
 }
 
-const DUMP_SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), "ida_dump.py");
+const SRC_DIR = path.dirname(fileURLToPath(import.meta.url));
+const DUMP_SCRIPT = path.join(SRC_DIR, "ida_dump.py");
+const GHIDRA_SCRIPT = path.join(SRC_DIR, "GhidraDecompile.java");
+// Set VERDEX_GHIDRA to your Ghidra support/analyzeHeadless[.bat]. A few common
+// install locations are probed as a convenience; override when yours differs.
+const GHIDRA_CANDIDATES = [
+  "C:\\ghidra\\support\\analyzeHeadless.bat",
+  "/opt/ghidra/support/analyzeHeadless",
+  "/usr/local/ghidra/support/analyzeHeadless",
+];
+
+function findGhidra() {
+  const env = process.env.VERDEX_GHIDRA;
+  const candidates = env ? [env, ...GHIDRA_CANDIDATES] : GHIDRA_CANDIDATES;
+  for (const c of candidates) {
+    try { if (fs.statSync(c).isFile()) return c; } catch { /* keep looking */ }
+  }
+  return null;
+}
+
+const LIMITS_DECOMPILE = [
+  "反编译伪 C 是对二进制的重建推断，不是原始源码；注释、宏、局部变量名在编译后已丢失。",
+  "只做静态反编译，未执行目标二进制，未访问网络。",
+];
+
+async function decompileWithGhidra(source, symbol) {
+  const headless = findGhidra();
+  if (!headless) throw new Error("后端未安装：未找到 IDA(idat.exe)也未找到 Ghidra(analyzeHeadless);设置 VERDEX_IDA 或 VERDEX_GHIDRA 指向其一");
+  const work = fs.mkdtempSync(path.join(os.tmpdir(), "verdex-ghidra-"));
+  const target = path.join(work, path.basename(source).replace(/[^A-Za-z0-9_.-]/g, "_"));
+  const outFile = path.join(work, "decompile.json");
+  try {
+    fs.copyFileSync(source, target);
+    fs.copyFileSync(GHIDRA_SCRIPT, path.join(work, "GhidraDecompile.java"));
+    const hlArgs = [work, "verdex_tmp", "-import", target, "-scriptPath", work,
+      "-postScript", "GhidraDecompile.java", outFile,
+      "-deleteProject", "-analysisTimeoutPerFile", "280"];
+    // Windows can't spawn a .bat directly (EINVAL); route through cmd.exe /c.
+    const [cmd, args] = headless.toLowerCase().endsWith(".bat")
+      ? [process.env.ComSpec || "cmd.exe", ["/c", headless, ...hlArgs]]
+      : [headless, hlArgs];
+    // Symbol filter is passed to the Ghidra script via env (arg forwarding is unreliable).
+    const childEnv = { ...process.env, VERDEX_DECOMPILE_SYMBOL: symbol || "" };
+    await execFileAsync(cmd, args, { timeout: DECOMPILE_TIMEOUT_MS, maxBuffer: MAX_BUFFER, windowsHide: true, cwd: work, env: childEnv })
+      .catch((error) => { if (!fs.existsSync(outFile)) throw new Error(`Ghidra 执行失败：${error.message}`); });
+    if (!fs.existsSync(outFile)) throw new Error("Ghidra 未产出反编译结果");
+    const dump = JSON.parse(fs.readFileSync(outFile, "utf8"));
+    // Filter to the requested symbol in Node — robust regardless of Ghidra's
+    // script arg/env forwarding and its class-name compile cache.
+    let functions = dump.functions || [];
+    if (symbol) functions = functions.filter((f) => f.name === symbol);
+    const env = envelope("bin_decompile", source, "ghidra", {
+      epistemic: "inferred", symbol,
+      function_count: functions.length,
+      functions,
+      ...(symbol && functions.length === 0 ? { note: `未找到名为 ${symbol} 的函数(可能已 strip 或名称不同;不传 symbol 可看全部)。` } : {}),
+    });
+    env.limitations = [...LIMITS_DECOMPILE, "本次用 Ghidra 后端(免费);伪 C 风格与质量与 IDA Hex-Rays 略有差异。"];
+    return env;
+  } finally {
+    fs.rmSync(work, { recursive: true, force: true });
+  }
+}
 
 export async function binDecompile(value, options = {}) {
   const source = resolveBinary(value);
-  const idat = findIda();
-  if (!idat) throw new Error("后端未安装：未找到 IDA(idat.exe)；设置环境变量 VERDEX_IDA 指向 idat.exe");
-
   const symbol = typeof options.symbol === "string" && /^[A-Za-z0-9_.$@]{1,128}$/.test(options.symbol) ? options.symbol : null;
+  const idat = findIda();
+  if (!idat) return decompileWithGhidra(source, symbol);
+
   const work = fs.mkdtempSync(path.join(os.tmpdir(), "verdex-ida-"));
   const target = path.join(work, path.basename(source).replace(/[^A-Za-z0-9_.-]/g, "_"));
   const outFile = path.join(work, "decompile.json");

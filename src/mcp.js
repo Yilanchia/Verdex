@@ -6,6 +6,7 @@ import { validateBrief } from "./brief.js";
 import { collectOsint } from "./osint.js";
 import { resolveRoot } from "./workspace.js";
 import { writeRun } from "./store.js";
+import { diffRuns } from "./diff.js";
 import { REVERSE_TOOLS } from "./reverse.js";
 import { PWN_TOOLS } from "./pwn.js";
 import { WEB_TOOLS } from "./web.js";
@@ -78,6 +79,19 @@ const TOOLS = [
       const paths = writeRun(analysis, undefined, validated);
       return { schema: "VerdexReportRun/v1", analysis_id: analysis.analysis_id, finding_count: analysis.scan?.findings?.length || 0, saved: paths };
     },
+  },
+  {
+    name: "diff",
+    description: "对比两次扫描快照(.verdex/runs 下的 run 目录),按证据指纹分出新增/已修复/仍存在的候选,带严重度统计。追踪'改了什么、修了什么、还剩什么'。只读。",
+    inputSchema: {
+      type: "object",
+      required: ["base", "head"],
+      properties: {
+        base: { type: "string", description: "基线 run 目录路径(较早的快照)。" },
+        head: { type: "string", description: "对比 run 目录路径(较新的快照)。" },
+      },
+    },
+    run: ({ base, head }) => diffRuns(base, head),
   },
 ];
 

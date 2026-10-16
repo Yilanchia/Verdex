@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { renderReport } from "./report.js";
 import { renderReportHtml } from "./report-html.js";
+import { renderSarif } from "./sarif.js";
 
 const DEFAULT_RUNS_DIRECTORY = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", ".verdex", "runs");
 
@@ -17,8 +18,9 @@ export function writeRun(analysis, outputDirectory = DEFAULT_RUNS_DIRECTORY, bri
   fs.writeFileSync(path.join(directory, "osint.json"), `${JSON.stringify(analysis.osint || {}, null, 2)}\n`, "utf8");
   fs.writeFileSync(path.join(directory, "report.md"), renderReport(analysis, brief), "utf8");
   fs.writeFileSync(path.join(directory, "report.html"), renderReportHtml(analysis, brief), "utf8");
+  fs.writeFileSync(path.join(directory, "report.sarif"), `${JSON.stringify(renderSarif(analysis, brief), null, 2)}\n`, "utf8");
   fs.writeFileSync(path.join(root, "LATEST.txt"), `${directory}\n`, "utf8");
-  return { directory, analysis: path.join(directory, "analysis.json"), findings: path.join(directory, "findings.json"), osint: path.join(directory, "osint.json"), report: path.join(directory, "report.md"), report_html: path.join(directory, "report.html") };
+  return { directory, analysis: path.join(directory, "analysis.json"), findings: path.join(directory, "findings.json"), osint: path.join(directory, "osint.json"), report: path.join(directory, "report.md"), report_html: path.join(directory, "report.html"), report_sarif: path.join(directory, "report.sarif") };
 }
 
 export function listRuns(outputDirectory = DEFAULT_RUNS_DIRECTORY, limit = 20) {

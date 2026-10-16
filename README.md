@@ -37,6 +37,8 @@ node src/cli.js mcp
 
 源码分析工具：`assets`、`map`、`scan`、`osint`、`report`（跑完整分析并在 `.verdex/runs` 存一份不可变快照:JSON + Markdown + HTML 报告,返回各文件路径）。
 
+- `diff`：对比两次扫描快照(`.verdex/runs` 下的 run 目录),按证据指纹分出**新增 / 已修复 / 仍存在**的候选,带严重度统计——追踪"改了什么、修了什么、还剩什么"。只读。
+
 Web 攻防工具（只读分析 / 只产文本,Verdex 不发起任何请求）：
 - `har_analyze`：静态分析你抓的 HAR 流量(Burp/DevTools 导出)——缺失安全头、不安全 Cookie、CORS 任意源、反射参数(XSS 候选)、URL 泄露令牌、明文传输。
 - `web_poc`：生成 web 漏洞验证请求模板(curl + python,仅文本)。`url` 必填=显式声明授权目标,写进授权 banner;`kind` 支持 sqli/xss/ssrf/path/redirect。Verdex 不代为发送,由你审阅后在授权范围自行运行。禁止用于未授权系统。
@@ -44,7 +46,7 @@ Web 攻防工具（只读分析 / 只产文本,Verdex 不发起任何请求）�
 二进制逆向工具（证据分层，只静态解析、**绝不执行目标文件**）：
 
 - `bin_info`（文件类型/架构/头/段）、`bin_symbols`（符号与动态导入导出）、`bin_strings`（带偏移字符串）、`bin_disasm`（objdump 反汇编，可指定符号）。基于本机 binutils（objdump/nm/strings/file）。
-- `bin_decompile`（IDA Pro / Hex-Rays headless 反编译出伪 C，可选 `symbol` 只反编译单函数）。需本机装 IDA 9+：默认探测常见安装路径，或设环境变量 `VERDEX_IDA` 指向 `idat.exe`。Verdex 会把目标拷到临时目录、headless 运行 IDA、读回结果后清理数据库，全程只分析不执行目标。
+- `bin_decompile`（反编译出伪 C，可选 `symbol` 只反编译单函数）。**双后端**:优先 IDA Pro / Hex-Rays(设 `VERDEX_IDA` 指向 `idat.exe`),未找到 IDA 时自动回退到 **Ghidra**(免费,设 `VERDEX_GHIDRA` 指向 `support/analyzeHeadless`,需 JDK 21+)。两者都把目标拷到临时目录、headless 运行、读回结果后清理,全程只分析不执行目标。IDA 不在也能用,对开源用户友好。
 
 - `reconstruct`（源码重建）：打包伪 C（IDA）+ 符号 + 字符串 + 一份结构化**重建指令**（`reconstruction_brief`，编码四项侧重:忠实不幻觉、可读性、结构恢复、调用关系），交由调用方模型（如 DeepSeek）重命名、补类型、加注释、译回接近原始风格的可读源码。可选 `symbol` 只重建单函数。
 
@@ -93,7 +95,7 @@ Web 攻防工具（只读分析 / 只产文本,Verdex 不发起任何请求）�
 
 运行 `npm start` 后访问 `http://127.0.0.1:3210`。前端是本地零依赖工作台：可以选择工作目录、手动补充域名/URL/IP 资产、填写 brief，查看覆盖、资产面、脱敏 OSINT 观察及待复核候选。服务只监听本机地址，分析接口不会主动发起网络请求。
 
-分析完成后可以点击“保存快照”。工作台会在 `.verdex/runs` 中保存不可变的 `analysis.json`、`findings.json`、脱敏 `osint.json`、Markdown 报告（`report.md`，含执行摘要/严重度统计）和一份自包含的 **HTML 报告**（`report.html`，内联样式、严重度看板、证据链、修复方向，可直接双击打开或分享）；总览页的“运行记录”可以查看历史摘要并下载报告。
+分析完成后可以点击“保存快照”。工作台会在 `.verdex/runs` 中保存不可变的 `analysis.json`、`findings.json`、脱敏 `osint.json`、Markdown 报告（`report.md`，含执行摘要/严重度统计）、一份自包含的 **HTML 报告**（`report.html`，内联样式、严重度看板、证据链、修复方向），以及一份 **SARIF 2.1.0**（`report.sarif`）——可直接上传到 GitHub 代码扫描、在 PR 里标注,或用 VS Code 的 SARIF 查看器打开。总览页的“运行记录”可以查看历史摘要并下载报告。
 
 “个人查找”是独立功能：输入已知邮箱、手机号、用户名、姓名或资料链接后，只在当前工作目录中做精确文本匹配，结果默认脱敏并保留文件和行号证据。它不会访问互联网、做身份推断或账号关联。
 

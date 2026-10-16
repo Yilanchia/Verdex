@@ -278,7 +278,7 @@ test("MCP server lists read-only tools and enforces brief redlines over stdio pr
 
   const list = await dispatch({ jsonrpc: "2.0", id: 2, method: "tools/list" });
   const names = list.result.tools.map((tool) => tool.name);
-  for (const expected of ["assets", "map", "osint", "scan", "report", "bin_info", "bin_symbols", "bin_strings", "bin_disasm", "bin_decompile", "reconstruct", "pwn_checksec", "pwn_gadgets", "pwn_template", "pwn_cyclic", "pwn_gdbscript", "pwn_libc", "har_analyze", "web_poc"]) {
+  for (const expected of ["assets", "map", "osint", "scan", "report", "bin_info", "bin_symbols", "bin_strings", "bin_disasm", "bin_decompile", "reconstruct", "diff", "pwn_checksec", "pwn_gadgets", "pwn_template", "pwn_cyclic", "pwn_gdbscript", "pwn_libc", "har_analyze", "web_poc"]) {
     assert.ok(names.includes(expected), `missing tool ${expected}`);
   }
 
@@ -471,4 +471,58 @@ test("pwn_libc parses symbol lines and degrades cleanly on a stripped/dumped lib
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("diffRuns classifies findings into added / fixed / unchanged by fingerprint", async () => {
+  const { diffRuns } = await import("../src/diff.js");
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "verdex-diff-"));
+  try {
+    const baseDir = path.join(root, "base");
+    const headDir = path.join(root, "head");
+    fs.mkdirSync(baseDir); fs.mkdirSync(headDir);
+    // shared(unchanged) + only-in-base(fixed) + only-in-head(added)
+    const shared = { fingerprint: "fp_shared", severity: "high", kind: "sql", title: "s", file: "a.py", line: 1 };
+    const gone = { fingerprint: "fp_gone", severity: "medium", kind: "xss", title: "g", file: "b.py", line: 2 };
+    const fresh = { fingerprint: "fp_fresh", severity: "low", kind: "ssrf", title: "f", file: "c.py", line: 3 };
+    fs.writeFileSync(path.join(baseDir, "findings.json"), JSON.stringify([shared, gone]));
+    fs.writeFileSync(path.join(headDir, "findings.json"), JSON.stringify([shared, fresh]));
+    const d = diffRuns(baseDir, headDir);
+    assert.equal(d.summary.unchanged, 1);
+    assert.equal(d.summary.fixed, 1);
+    assert.equal(d.summary.added, 1);
+    assert.equal(d.added[0].fingerprint, "fp_fresh");
+    assert.equal(d.fixed[0].fingerprint, "fp_gone");
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("renderSarif emits valid SARIF 2.1.0 with rules, CWE help, and severity levels", async () => {
+  const { renderSarif } = await import("../src/sarif.js");
+  const analysis = {
+    analysis_id: "analysis_t", root: "/tmp/x",
+    scan: { findings: [
+      { title: "SQLi", kind: "sql", cwe: "CWE-89", severity: "high", file: "a" + String.fromCharCode(92) + "b.py", line: 5, why: "concat", fix: "parametrize", fingerprint: "fp_a", evidence: [{ column: 3, end_line: 5, snippet: "q='..'+x" }] },
+      { title: "Weak hash", kind: "crypto", cwe: "CWE-327", severity: "low", file: "c.js", line: 9, fingerprint: "fp_b", evidence: [] },
+    ] },
+  };
+  const s = renderSarif(analysis, null);
+  assert.equal(s.version, "2.1.0");
+  assert.match(s.$schema, /sarif-2\.1\.0/);
+  assert.equal(s.runs.length, 1);
+  const run = s.runs[0];
+  assert.equal(run.tool.driver.name, "Verdex");
+  assert.equal(run.tool.driver.rules.length, 2);
+  assert.equal(run.results.length, 2);
+  // severity → level mapping
+  assert.equal(run.results[0].level, "error");   // high
+  assert.equal(run.results[1].level, "note");    // low
+  // path normalized to forward slashes
+  assert.equal(run.results[0].locations[0].physicalLocation.artifactLocation.uri, "a/b.py");
+  // CWE help uri
+  assert.ok(run.tool.driver.rules.some((r) => r.helpUri === "https://cwe.mitre.org/data/definitions/89.html"));
+  // stable fingerprint carried for cross-run dedup
+  assert.equal(run.results[0].partialFingerprints.verdexFingerprint, "fp_a");
+  // every result's ruleIndex resolves
+  for (const r of run.results) assert.ok(run.tool.driver.rules[r.ruleIndex]);
 });
