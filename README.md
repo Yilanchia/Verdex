@@ -1,5 +1,6 @@
 # Verdex Workbench
-[![M8ven Score](https://m8ven.ai/badge/mcp/yilanchia-verdex-1s28o0?v=8acf7584845a7b298157c8c27d0f28fc)](https://m8ven.ai/mcp/yilanchia-verdex-1s28o0?s=readme)
+
+[![M8ven Score](https://m8ven.ai/.../badge.svg)](https://m8ven.ai/mcp/yilanchia/verdex)
 
 Verdex 是一个**证据优先**的本地安全研究工作台:源码审计、逆向、pwn 与 web 攻防辅助,并通过 MCP 让大模型(如 DeepSeek、Claude Code)自主编排这些能力。
 
