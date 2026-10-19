@@ -17,6 +17,9 @@ function detectFormat(file) {
     fs.readSync(fd, buf, 0, 4, 0);
     if (buf[0] === 0x7f && buf[1] === 0x45 && buf[2] === 0x4c && buf[3] === 0x46) return "elf";
     if (buf[0] === 0x4d && buf[1] === 0x5a) return "pe";
+    const be = buf.readUInt32BE(0);
+    // Mach-O: thin 32/64 (feedface/feedfacf, either endianness) or fat (cafebabe/bebafeca).
+    if ([0xfeedface, 0xfeedfacf, 0xcefaedfe, 0xcffaedfe, 0xcafebabe, 0xbebafeca].includes(be)) return "macho";
     return "unknown";
   } finally {
     fs.closeSync(fd);
@@ -83,7 +86,8 @@ export async function pwnChecksec(value) {
   const format = detectFormat(file);
   if (format === "elf") return envelope("pwn_checksec", file, "elf", { protections: await checksecElf(file), backend: "readelf" });
   if (format === "pe") return envelope("pwn_checksec", file, "pe", { protections: await checksecPe(file), backend: "objdump" });
-  throw new Error("不支持的二进制格式(仅 ELF/PE);magic 既非 \\x7fELF 也非 MZ");
+  if (format === "macho") throw new Error("Mach-O 的 checksec 暂未实现(PIE/canary/ARC/加密 需单独解析);可先用 bin_info / bin_disasm / bin_decompile 分析该 Mach-O");
+  throw new Error("不支持的二进制格式(仅 ELF/PE/Mach-O)");
 }
 
 // Lightweight ROP gadget finder: scans objdump disassembly for short
@@ -92,7 +96,7 @@ export async function pwnChecksec(value) {
 export async function pwnGadgets(value, options = {}) {
   const file = resolveBinary(value);
   const format = detectFormat(file);
-  if (format !== "elf" && format !== "pe") throw new Error("不支持的二进制格式(仅 ELF/PE)");
+  if (!["elf", "pe", "macho"].includes(format)) throw new Error("不支持的二进制格式(仅 ELF/PE/Mach-O)");
   const maxLen = Number.isInteger(options.maxLen) && options.maxLen >= 1 && options.maxLen <= 6 ? options.maxLen : 4;
   const filter = typeof options.filter === "string" ? options.filter.toLowerCase().trim() : "";
   const stdout = await run("objdump", ["-d", "-M", "intel", "--no-show-raw-insn", file]);
@@ -213,9 +217,9 @@ export async function pwnTemplate(value, options = {}) {
   const file = resolveBinary(value);
   const target = parseTarget(options.target);
   const format = detectFormat(file);
-  if (format !== "elf" && format !== "pe") throw new Error("不支持的二进制格式(仅 ELF/PE)");
+  if (!["elf", "pe", "macho"].includes(format)) throw new Error("不支持的二进制格式(仅 ELF/PE/Mach-O)");
   const arch = await detectArch(file);
-  const osName = format === "elf" ? "linux" : "windows";
+  const osName = format === "elf" ? "linux" : format === "macho" ? "macos" : "windows";
   const base = path.basename(file);
   const conn = target.kind === "local"
     ? `io = process([exe.path])        # 本地题:直接起进程`

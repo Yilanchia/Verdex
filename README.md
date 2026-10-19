@@ -37,8 +37,17 @@ node src/cli.js mcp
 
 `node src/cli.js mcp` 启动一个零依赖的本地 MCP server（JSON-RPC 2.0 over stdio），把只读分析能力暴露为工具。全部只读、不访问网络、不生成载荷或攻击步骤；`scan` 的可选 brief 仍走 `validateBrief` 强制范围与红线。
 
-源码分析工具：`assets`、`map`、`scan`、`osint`、`report`（跑完整分析并在 `.verdex/runs` 存一份不可变快照:JSON + Markdown + HTML 报告,返回各文件路径）。
+一站式入口：`analyze_target`——丢一个路径(目录或文件),自动识别类型(目录/ELF/PE/**.NET**/Mach-O/APK/IPA/小程序/DEX/固件 SquashFS·JFFS2·UBI/JS/HAR)并返回推荐的有序工具链。只做识别与路由,实际分析由被推荐的工具完成。
 
+`dotnet_decompile`：.NET/CLR 程序集(.dll/.exe)反编译成 **C#**(ILSpy/ilspycmd 后端,只读不执行)。可选 `typeName` 聚焦某类型。需装 ilspycmd(`VERDEX_ILSPY` 指向 `ilspycmd.dll`)+ 对应 .NET runtime。C#/VB/F# 托管程序集通吃。
+
+`asar_unpack`：解包 Electron `.asar` 归档(纯 Node,防路径穿越,只读):提取并清点 js/json/html/css/.node,js 可路由 `js_deobfuscate`、`.node` 原生插件可 `bin_decompile`。桌面 Electron 应用逆向入口。
+
+`bin_dossier`:单函数结构化档案(对标 REA function dossier)——给一个 `symbol`,产出它的反汇编 + 调用的函数(`calls_out`)+ 引用的字符串(`string_xrefs`)+ 伪 C(装了 IDA/Ghidra 时)。快速看懂一个函数在干什么。
+
+源码分析工具：`assets`、`map`、`scan`、`osint`、`report`（跑完整分析并在 `.verdex/runs` 存一份不可变快照:JSON + Markdown + HTML + SARIF 报告,返回各文件路径）。
+
+- `secrets`：扫描硬编码密钥——按服务商特征(AWS/GitHub/Google/Slack/Stripe/私钥/JWT 等)、**命名密钥常量**(`*_APP_KEY`/`*_SECRET`/`CLIENT_ID` 等按变量名判定)、**签名盐**(`appSecret=`/`&key=`)+ 高熵启发式识别,**默认脱敏**(只给前后几位 + value_sha256 + 文件行号,绝不输出密钥原文)。只读本地,不联网、不验证凭据。
 - `diff`：对比两次扫描快照(`.verdex/runs` 下的 run 目录),按证据指纹分出**新增 / 已修复 / 仍存在**的候选,带严重度统计——追踪"改了什么、修了什么、还剩什么"。只读。
 
 Web 攻防工具（只读分析 / 只产文本,Verdex 不发起任何请求）：
@@ -65,7 +74,21 @@ Web 攻防工具（只读分析 / 只产文本,Verdex 不发起任何请求）�
 - `pwn_gdbscript`：生成 gdb/pwndbg 动态分析脚本（**仅文本**:断点、看栈/内存、求偏移的命令骨架）。由你在自己授权环境里 `gdb -x 脚本 ./bin` 运行;Verdex 不执行目标、不连接任何系统。
 - `pwn_libc`：从 libc.so 提取 exploit 所需偏移——常用符号(system/execve/puts/__free_hook/__malloc_hook/__libc_start_main/environ…)、`/bin/sh` 字符串偏移、libc 版本。纯静态读 ELF,只读不执行;堆题/ret2libc 必备。无符号表(内存 dump/strip)时给出按版本比对 libc-database 的提示。
 
-> 动态逆向辅助的边界:Verdex 自身**从不执行目标二进制**。`pwn_cyclic` 是纯计算,`pwn_gdbscript` 只生成脚本文本——真正的调试与运行由你在自己的授权环境中完成。
+- `frida_script`：生成 Frida 动态分析脚本(**仅文本,Verdex 不 attach / 不注入 / 不运行**)。`target` 必填=授权目标声明(包名/进程)。`kind`:`unpack`(脱壳 dump 内存 dex——拿加壳 App 的业务代码)、`hook`(hook 指定 `className.method` 抓参数/返回)、`crypto`(抓运行时 key/IV/明文/算法)、`network`(抓 okhttp URL/headers 看签名怎么拼)。由你审阅后在**自己授权的设备/App** 上 `frida -U -f <target> -l x.js` 运行。
+
+> 动态分析的三道闸:① `target` 是**必填的授权目标声明**;② Verdex **只产脚本文本**,从不 attach/注入/运行;③ **人在环路**——模型提议、你审阅批准并亲自运行。静态够不着的(脱壳、运行时密钥、真实请求参数)在**你拥有或被授权的目标**上用动态补齐。`pwn_cyclic` 纯计算、`pwn_gdbscript`/`frida_script` 只生成脚本文本——执行都由你在授权环境完成。
+
+移动端工具（只读解包,不执行包内代码;仅限你拥有或被授权的 app）：
+- `mobile_unpack`：解包 APK/IPA/AAB/JAR(ZIP 容器)并清点内容,把原生库(`.so`/`.dylib`/Mach-O)、DEX、JS、小程序包、manifest 分类,并抽出原生库到可直接喂给 `bin_decompile` 的路径。**自动解码二进制 AndroidManifest**(纯 Node AXML 解析)输出攻击面:包名/版本/权限列表/导出组件/debuggable/allowBackup/cleartext/网络安全配置。
+- 原生库(ELF/Mach-O ARM)现可直接经 `bin_decompile`(IDA/Ghidra)反编译——`detectFormat` 已支持 Mach-O(thin/fat、32/64 位),解锁 iOS/macOS 原生二进制。
+- `wxapkg_unpack`：解包微信小程序 `.wxapkg` 包(自定义二进制格式,纯 Node 解析,防路径穿越),提取并清点 js/wxml/wxss/json;JS 可路由到 `scan` 分析逻辑。
+- `dex_decompile`：用 jadx 把 APK/DEX 反编译成 **Java**(只读,不运行 app)。清点 package/class,可选 `className` 返回指定类的 Java 源码。需装 jadx(设 `VERDEX_JADX` 指向 `bin/jadx`,或放在常见路径),jadx 需 JDK 11+(你的 JDK 21 够)。**反编译失败("Method not decompiled")时自动从 Kotlin `@DebugMetadata`/`@Metadata` 注解恢复**:局部变量名、挂起点行号、类成员名——即使方法体没还原,也能推断逻辑结构。
+- `js_deobfuscate`：JS 反混淆辅助(**纯静态,绝不执行脚本**)。解 `\xHH`/`\uHHHH` 转义揪出藏的 URL/字符串、把压缩成一行的代码美化成可读、识别混淆特征(`_0x` 标识符 / Dean Edwards packer / eval / atob / 大字符串数组)、提取 URL/IP/base64。字符串数组等运行时解码需执行才现形,本工具不做(越红线)。
+
+物联网固件工具（纯静态,只读,不解包不执行;仅限你拥有或被授权的设备）：
+- `fw_scan`：固件镜像分流(mini-binwalk)。扫描内嵌文件系统(SquashFS/CramFS/JFFS2/UBI)、压缩块(gzip/xz/lzma/bzip2/lzo)、引导头(U-Boot/TRX/DTB/Android boot/cpio)、ELF、PEM 的特征与**偏移**,每个命中附建议解包工具;并给**熵分布图**标出加密/压缩区段(整体高熵且无特征→可能是加密固件)。
+- `fw_extract`：解包 **SquashFS** 固件镜像(Windows 下经 WSL 调 `unsquashfs`,Linux 原生)并清点 rootfs——原生 ELF(抽出可喂 `bin_decompile`)、配置、脚本、凭据文件(passwd/密钥等)。需 WSL 里装 `squashfs-tools`(可设 `VERDEX_WSL_DISTRO` 指定发行版)。
+- 解包后得到 rootfs:ELF→`bin_decompile`、配置/脚本→`scan`、硬编码凭据→`secrets`,直接复用现有能力。其他文件系统(JFFS2/UBI)先用 `fw_scan` 定位,再用对应工具(jefferson/ubireader)。
 
 接入 DeepSeek Harness（dsh）：在 profile 的 `cordis.yml` 里加一个 MCP 客户端实例，大模型即可以 `mcp__verdex__scan` 等名字调用：
 

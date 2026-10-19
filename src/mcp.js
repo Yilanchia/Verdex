@@ -10,6 +10,14 @@ import { diffRuns } from "./diff.js";
 import { REVERSE_TOOLS } from "./reverse.js";
 import { PWN_TOOLS } from "./pwn.js";
 import { WEB_TOOLS } from "./web.js";
+import { MOBILE_TOOLS } from "./mobile.js";
+import { SECRETS_TOOLS } from "./secrets.js";
+import { FIRMWARE_TOOLS } from "./firmware.js";
+import { JSDEOBF_TOOLS } from "./jsdeobf.js";
+import { ORCHESTRATE_TOOLS } from "./orchestrate.js";
+import { FRIDA_TOOLS } from "./frida.js";
+import { DOTNET_TOOLS } from "./dotnet.js";
+import { ELECTRON_TOOLS } from "./electron.js";
 
 const PROTOCOL_VERSION = "2024-11-05";
 const SERVER_INFO = { name: "verdex", version: "0.1.0" };
@@ -95,7 +103,23 @@ const TOOLS = [
   },
 ];
 
-const ALL_TOOLS = [...TOOLS, ...REVERSE_TOOLS, ...PWN_TOOLS, ...WEB_TOOLS];
+const ALL_TOOLS = [...TOOLS, ...REVERSE_TOOLS, ...PWN_TOOLS, ...WEB_TOOLS, ...MOBILE_TOOLS, ...SECRETS_TOOLS, ...FIRMWARE_TOOLS, ...JSDEOBF_TOOLS, ...ORCHESTRATE_TOOLS, ...FRIDA_TOOLS, ...DOTNET_TOOLS, ...ELECTRON_TOOLS];
+
+// MCP tool annotations (hints for hosts). Verdex-wide truths: nothing is
+// destructive (no tool deletes/overwrites user data) and nothing touches the
+// network (openWorld=false). Default is a pure read-only analyzer; the few
+// tools that persist output files are marked not-read-only / not-idempotent.
+const WRITES_ARTIFACTS = new Set(["report", "mobile_unpack", "wxapkg_unpack", "fw_extract", "asar_unpack"]);
+function annotationsFor(name) {
+  const writes = WRITES_ARTIFACTS.has(name);
+  return {
+    title: name,
+    readOnlyHint: !writes,
+    destructiveHint: false,
+    idempotentHint: !writes,
+    openWorldHint: false,
+  };
+}
 const TOOL_MAP = new Map(ALL_TOOLS.map((tool) => [tool.name, tool]));
 
 function ok(id, result) {
@@ -125,7 +149,7 @@ export async function dispatch(message) {
     return ok(id, { protocolVersion: params?.protocolVersion || PROTOCOL_VERSION, capabilities: { tools: {} }, serverInfo: SERVER_INFO });
   }
   if (method === "tools/list") {
-    return ok(id, { tools: ALL_TOOLS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })) });
+    return ok(id, { tools: ALL_TOOLS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema, annotations: annotationsFor(name) })) });
   }
   if (method === "tools/call") return callTool(id, params);
   if (method === "ping") return ok(id, {});

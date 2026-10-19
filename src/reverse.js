@@ -277,7 +277,57 @@ export async function reconstructSource(value, options = {}) {
   return env;
 }
 
+// Structured per-function dossier (à la REA): disassembly of one symbol +
+// the functions it calls + strings it references + optional pseudo-C. Read-only.
+export async function binDossier(value, options = {}) {
+  const file = resolveBinary(value);
+  const symbol = typeof options.symbol === "string" && /^[A-Za-z0-9_.$@]{1,128}$/.test(options.symbol) ? options.symbol : null;
+  if (!symbol) throw new Error("bin_dossier 需要 symbol 参数(目标函数名)");
+
+  const dis = await run("objdump", ["-d", "-C", "-M", "intel", "--no-show-raw-insn", `--disassemble=${symbol}`, file]);
+  const lines = dis.split(/\r?\n/);
+  // calls: `call <0x..> <name>` → collect callee names
+  const calls = [];
+  const callRx = /\b(?:call|bl|blx|jal)\s+(?:0x)?[0-9a-f]+\s+<([^>+@]+)/i;
+  for (const l of lines) { const m = l.match(callRx); if (m) calls.push(m[1]); }
+  const uniqueCalls = [...new Set(calls)].slice(0, 100);
+
+  // string xrefs: objdump annotates loads with `# <addr> <...>`; also pull inline string comments
+  const strRefs = [];
+  for (const l of lines) { const m = l.match(/#\s*[0-9a-f]+\s+<?([^>\n]{3,80})>?\s*$/i); if (m && /[A-Za-z]/.test(m[1])) strRefs.push(m[1].trim()); }
+
+  let pseudocode = null;
+  let decompileBackend = null;
+  if (findIda() || findGhidra()) {
+    try {
+      const dec = await binDecompile(file, { symbol });
+      const fn = (dec.functions || []).find((f) => f.name === symbol && f.pseudocode) || (dec.functions || []).find((f) => f.pseudocode);
+      if (fn) { pseudocode = fn.pseudocode; decompileBackend = dec.backend; }
+    } catch { /* decompile optional */ }
+  }
+
+  const env = envelope("bin_dossier", file, decompileBackend ? `objdump + ${decompileBackend}` : "objdump", {
+    epistemic: "inferred",
+    symbol,
+    disassembly: clip(dis),
+    calls_out: uniqueCalls,
+    string_xrefs: [...new Set(strRefs)].slice(0, 50),
+    ...(pseudocode ? { pseudocode } : { pseudocode_note: "未装 IDA/Ghidra,档案只含反汇编+调用+字符串;装了反编译器会附伪 C" }),
+  });
+  env.limitations = [
+    "单函数档案:反汇编为事实,调用/字符串为从反汇编抽取,伪 C(若有)是重建推断。",
+    "只静态分析,未执行目标。",
+  ];
+  return env;
+}
+
 export const REVERSE_TOOLS = [
+  {
+    name: "bin_dossier",
+    description: "单函数结构化档案(对标 REA function dossier):给一个 symbol,产出它的反汇编 + 它调用的函数(calls_out)+ 引用的字符串(string_xrefs)+ 伪 C(装了 IDA/Ghidra 时)。快速看懂一个函数在干什么。只读,不执行。",
+    inputSchema: { type: "object", required: ["path", "symbol"], properties: { path: { type: "string", description: "本地二进制路径。" }, symbol: { type: "string", description: "目标函数名。" } } },
+    run: (args) => binDossier(args.path, { symbol: args.symbol }),
+  },
   {
     name: "bin_info",
     description: "二进制事实:文件类型、架构、ELF/PE 头、段表(file + objdump)。只读,不执行目标文件,不访问网络。",
