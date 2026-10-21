@@ -18,6 +18,7 @@ import { ORCHESTRATE_TOOLS } from "./orchestrate.js";
 import { FRIDA_TOOLS } from "./frida.js";
 import { DOTNET_TOOLS } from "./dotnet.js";
 import { ELECTRON_TOOLS } from "./electron.js";
+import { PROOF_TOOLS } from "./proof.js";
 
 const PROTOCOL_VERSION = "2024-11-05";
 const SERVER_INFO = { name: "verdex", version: "0.1.0" };
@@ -103,7 +104,7 @@ const TOOLS = [
   },
 ];
 
-const ALL_TOOLS = [...TOOLS, ...REVERSE_TOOLS, ...PWN_TOOLS, ...WEB_TOOLS, ...MOBILE_TOOLS, ...SECRETS_TOOLS, ...FIRMWARE_TOOLS, ...JSDEOBF_TOOLS, ...ORCHESTRATE_TOOLS, ...FRIDA_TOOLS, ...DOTNET_TOOLS, ...ELECTRON_TOOLS];
+const ALL_TOOLS = [...TOOLS, ...REVERSE_TOOLS, ...PWN_TOOLS, ...WEB_TOOLS, ...MOBILE_TOOLS, ...SECRETS_TOOLS, ...FIRMWARE_TOOLS, ...JSDEOBF_TOOLS, ...ORCHESTRATE_TOOLS, ...FRIDA_TOOLS, ...DOTNET_TOOLS, ...ELECTRON_TOOLS, ...PROOF_TOOLS];
 
 // MCP tool annotations (hints for hosts). Verdex-wide truths: nothing is
 // destructive (no tool deletes/overwrites user data) and nothing touches the

@@ -14,7 +14,7 @@ export function computeSeveritySummary(findings = []) {
 export function renderReport(analysis, brief = null) {
   const findings = [...(analysis.scan?.findings || [])].sort((left, right) => (SEVERITY_ORDER[left.severity] ?? 9) - (SEVERITY_ORDER[right.severity] ?? 9));
   const lines = [
-    "# Verdex Workbench 分析报告",
+    "# Verdex 分析报告",
     "",
     `- 分析 ID：${analysis.analysis_id || "unknown"}`,
     `- 工作目录：${analysis.root || "unknown"}`,

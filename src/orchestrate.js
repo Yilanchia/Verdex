@@ -69,10 +69,31 @@ const CHAINS = {
   "electron-asar": [["asar_unpack", "解包 Electron 归档"], ["js_deobfuscate", "对主/渲染进程 js 反混淆"], ["scan", "对解包目录静态分析"]],
   zip: [["mobile_unpack", "按 ZIP 解包清点(若是 app 包)"]],
   "unknown-file": [["bin_info", "先看文件类型"], ["fw_scan", "若疑似固件,做特征+熵分流"]],
+  domain: [["web_recon", "为授权域名生成分阶段侦察剧本(被动→轻主动→主动)"]],
 };
 
+// A bare domain / URL (common for public-SRC scopes that only give a host).
+function looksLikeDomain(value) {
+  const v = value.trim().replace(/^https?:\/\//i, "").replace(/\/.*$/, "");
+  return /^(?:\*\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}$/i.test(v) && !/[\\/]/.test(value.replace(/^https?:\/\//i, "").replace(/\/.*$/, ""));
+}
+
 export function analyzeTarget(value) {
-  if (typeof value !== "string" || !value.trim()) throw new Error("参数 path 必须是本地路径");
+  if (typeof value !== "string" || !value.trim()) throw new Error("参数 path 必须是本地路径或授权域名");
+  // Domain/URL target (SRC gives only a host) → recon playbook, not a file.
+  if (!fs.existsSync(path.resolve(value.replace(/^https?:\/\//i, "").split(/[\\/]/)[0])) && looksLikeDomain(value)) {
+    const d = value.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+    return {
+      schema: "VerdexOrchestrate/v1",
+      tool: "analyze_target",
+      target: d,
+      is_directory: false,
+      target_type: "domain",
+      recommended_tools: CHAINS.domain.map(([tool, why], i) => ({ step: i + 1, tool: `mcp__verdex__${tool}`, why })),
+      note: "目标是域名(非本地文件):先用 web_recon 生成侦察剧本。仅对授权范围(公益 SRC/书面 scope)的域执行,命令由你在授权内运行。",
+      limitations: ["只做识别与路由;web_recon 只产剧本文本,不向任何目标发请求。"],
+    };
+  }
   const target = path.resolve(value);
   const stat = fs.statSync(target); // throws if missing
   const type = stat.isDirectory() ? "directory" : detectFileType(target, magic(target));

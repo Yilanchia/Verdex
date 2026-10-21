@@ -164,7 +164,84 @@ export function webPoc(url, options = {}) {
   };
 }
 
+// Generates a staged web-recon PLAYBOOK (text only) for an authorized domain
+// (e.g. a registered public-SRC scope). Verdex NEVER sends a request — the
+// human runs the commands within scope. Passive-first; active phases flagged.
+function webReconDomain(domain) {
+  const d = String(domain || "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  if (!d) throw new Error("参数 domain 必填:声明授权域名(如 example.com)。这是授权声明,不是可选项");
+  if (!/^(?:\*\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}$/.test(d)) throw new Error("domain 应为合法域名(如 example.com 或 *.example.com)");
+  return d;
+}
+
+export function webRecon(domain, options = {}) {
+  const d = webReconDomain(domain);
+  const scope = typeof options.scope === "string" ? options.scope.trim() : "";
+  const banner = [
+    `# Verdex 侦察剧本 —— 仅供授权范围(公益 SRC / 书面 scope)内执行。`,
+    `# 目标域: ${d}${scope ? `   声明 scope: ${scope}` : ""}`,
+    `# 你负责确认该域在授权范围内,并遵守项目规则(限速、禁爆破条款、测试时段)。`,
+    `# Verdex 只生成剧本、不发任何请求;命令由你在自己环境内执行。被动优先。`,
+    `# 注意:公益 SRC 给"主域"不等于授权所有子域;主动阶段前务必核对 scope。`,
+  ].join("\n");
+
+  const phases = [
+    {
+      phase: "1. 被动侦察(不碰目标)",
+      note: "只查公开数据源,不向目标发包。先把面铺开。",
+      steps: [
+        `subfinder -d ${d} -silent -o subs.txt          # 子域(被动源聚合)`,
+        `curl -s "https://crt.sh/?q=%25.${d}&output=json" | jq -r '.[].name_value' | sort -u   # 证书透明度`,
+        `amass enum -passive -d ${d} -o amass.txt        # 被动 DNS 聚合`,
+        `curl -s "http://web.archive.org/cdx/search/cdx?url=*.${d}/*&output=text&fl=original&collapse=urlkey" | sort -u   # Wayback 历史 URL(找老接口/泄露路径)`,
+        `# 看什么:子域清单、历史接口、JS 里的后端域名/路径。把子域去重合进 hosts.txt`,
+      ],
+    },
+    {
+      phase: "2. 轻主动(探活+指纹,确认在 scope 内)",
+      note: "对已确认在授权范围的子域做轻量探测,别对 scope 外的发包。",
+      steps: [
+        `httpx -l hosts.txt -silent -title -tech-detect -status-code -o alive.txt   # 存活+标题+技术栈`,
+        `# 看什么:哪些子域活着、用什么框架/中间件、有没有默认页/管理后台标题`,
+        `# 技术栈 → 对应已知 CVE;后台/测试系统标题 → 重点关注`,
+      ],
+    },
+    {
+      phase: "3. 主动(目录/漏洞扫,务必 scope 内 + 守限速)",
+      note: "⚠️ 公益 SRC 常禁高强度爆破。确认规则允许再做,带限速。",
+      steps: [
+        `ffuf -u https://TARGET/FUZZ -w wordlist.txt -mc 200,301,403 -rate 20   # 目录发现,限速 20/s`,
+        `nuclei -l alive.txt -severity medium,high,critical -rl 30               # 模板扫,只看中危以上`,
+        `# 看什么:暴露的 .git/.env/备份文件、未授权接口、nuclei 命中的已知漏洞`,
+        `# 发现后回到 Verdex:har_analyze 看抓包、scan 看源码(若能拿到)、secrets 查泄露`,
+      ],
+    },
+  ];
+
+  return {
+    schema: "VerdexWeb/v1",
+    tool: "web_recon",
+    authorized_domain: d,
+    scope: scope || null,
+    playbook_banner: banner,
+    phases,
+    required_tools: ["subfinder", "amass", "httpx", "ffuf", "nuclei", "jq", "curl"],
+    next_in_verdex: "拿到抓包 → har_analyze;拿到源码/JS → scan / js_deobfuscate;发现泄露文件 → secrets。",
+    limitations: [
+      "这是侦察剧本文本;Verdex 不执行任何命令、不向目标发请求——由你在授权范围内运行。",
+      "被动阶段不碰目标;轻主动/主动阶段会向目标发包,仅限授权域且守项目规则(限速/禁爆破)。",
+      "主域授权 ≠ 子域全授权;主动扫描前核对 SRC scope,超范围的发现不要上报也不要测。",
+    ],
+  };
+}
+
 export const WEB_TOOLS = [
+  {
+    name: "web_recon",
+    description: "为授权域名(公益 SRC / 书面 scope)生成分阶段 web 侦察剧本(仅文本,Verdex 不发请求):被动(子域/CT/Wayback,不碰目标)→轻主动(httpx 探活指纹)→主动(ffuf/nuclei,标注需确认 scope+限速)。domain 必填=授权声明。命令由你在授权范围内自行执行。只给主域不等于授权所有子域。",
+    inputSchema: { type: "object", required: ["domain"], properties: { domain: { type: "string", description: "授权目标域名(如 example.com)。" }, scope: { type: "string", description: "可选:项目声明的 scope 说明(如 '*.example.com,排除 pay.example.com')。" } } },
+    run: (args) => webRecon(args.domain, { scope: args.scope }),
+  },
   {
     name: "har_analyze",
     description: "静态分析你抓的 HAR 流量文件(Burp/浏览器 DevTools 导出):标出缺失安全头、不安全 Cookie、CORS 任意源、反射参数(XSS 候选)、URL 泄露令牌、明文传输。只读文件,不发起任何请求。",

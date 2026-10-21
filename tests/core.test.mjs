@@ -196,7 +196,7 @@ test("local frontend serves dashboard and analysis API", async () => {
   try {
     const page = await fetch("http://127.0.0.1:" + port + "/");
     assert.equal(page.status, 200);
-    assert.match(await page.text(), /Verdex Workbench/);
+    assert.match(await page.text(), /Verdex/);
     const health = await fetch("http://127.0.0.1:" + port + "/api/health");
     assert.equal(health.status, 200);
     assert.equal((await health.json()).networkRequests, false);
@@ -221,7 +221,7 @@ test("local frontend serves dashboard and analysis API", async () => {
     const report = await fetch("http://127.0.0.1:" + port + savedRun.report_url);
     assert.equal(report.status, 200);
     const reportText = await report.text();
-    assert.match(reportText, /Verdex Workbench 分析报告/);
+    assert.match(reportText, /Verdex 分析报告/);
     assert.match(reportText, /复核状态：确认候选/);
     assert.match(reportText, /人工复核备注/);
   } finally {
@@ -278,7 +278,7 @@ test("MCP server lists read-only tools and enforces brief redlines over stdio pr
 
   const list = await dispatch({ jsonrpc: "2.0", id: 2, method: "tools/list" });
   const names = list.result.tools.map((tool) => tool.name);
-  for (const expected of ["assets", "map", "osint", "scan", "report", "bin_info", "bin_symbols", "bin_strings", "bin_disasm", "bin_decompile", "reconstruct", "diff", "pwn_checksec", "pwn_gadgets", "pwn_template", "pwn_cyclic", "pwn_gdbscript", "pwn_libc", "har_analyze", "web_poc", "mobile_unpack", "wxapkg_unpack", "dex_decompile", "secrets", "fw_scan", "fw_extract", "js_deobfuscate", "analyze_target", "frida_script", "dotnet_decompile", "asar_unpack"]) {
+  for (const expected of ["assets", "map", "osint", "scan", "report", "bin_info", "bin_symbols", "bin_strings", "bin_disasm", "bin_decompile", "reconstruct", "diff", "pwn_checksec", "pwn_gadgets", "pwn_template", "pwn_cyclic", "pwn_gdbscript", "pwn_libc", "har_analyze", "web_poc", "mobile_unpack", "wxapkg_unpack", "dex_decompile", "secrets", "fw_scan", "fw_extract", "js_deobfuscate", "analyze_target", "frida_script", "dotnet_decompile", "asar_unpack", "web_recon"]) {
     assert.ok(names.includes(expected), `missing tool ${expected}`);
   }
 
@@ -940,4 +940,77 @@ test("every MCP tool declares all four annotation hints as booleans", async () =
   // Artifact writers are honestly flagged not-read-only.
   const writers = tools.filter((t) => !t.annotations.readOnlyHint).map((t) => t.name).sort();
   assert.deepEqual(writers, ["asar_unpack", "fw_extract", "mobile_unpack", "report", "wxapkg_unpack"]);
+});
+
+test("scanSecrets triages findings by provable impact (direct vs conditional)", async () => {
+  const { scanSecrets } = await import("../src/secrets.js");
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "verdex-tri-"));
+  const q = String.fromCharCode(34);
+  try {
+    const AWS = "AKIA" + "IOSFODNN7EXAMPLE";
+    const APPKEY = "ad42845e8d50" + "cc54325c379c644487a75";
+    fs.writeFileSync(path.join(root, "c.java"), [
+      `String aws = ${q}${AWS}${q};`,                    // direct
+      `String APP_KEY = ${q}${APPKEY}${q};`,             // conditional (client app key)
+      `String pem = ${q}-----BEGIN RSA PRIVATE KEY-----${q};`, // direct
+    ].join("\n"), "utf8");
+    const r = scanSecrets(root);
+    const byImpact = Object.fromEntries(r.findings.map((f) => [f.rule, f.impact]));
+    assert.equal(byImpact["aws-access-key-id"], "direct");
+    assert.equal(byImpact["private-key"], "direct");
+    assert.equal(byImpact["named-key-constant"], "conditional");
+    assert.ok(r.triage.report_ready >= 2, "aws + pem are report-ready");
+    assert.ok(r.triage.needs_dynamic_proof >= 1, "app key needs proof");
+    assert.ok(r.triage.guidance.includes("理论"));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("web_recon requires an authorized domain and emits a passive-first staged playbook", async () => {
+  const { webRecon } = await import("../src/web.js");
+  assert.throws(() => webRecon(""), /domain 必填/);
+  assert.throws(() => webRecon("not a domain!!"));
+  const r = webRecon("example.com", { scope: "*.example.com" });
+  assert.equal(r.authorized_domain, "example.com");
+  assert.equal(r.phases.length, 3);
+  assert.match(r.playbook_banner, /仅供授权范围/);
+  assert.match(r.phases[0].phase, /被动/);
+  assert.match(r.phases[0].note, /不向目标发包/);
+  assert.ok(r.limitations.some((l) => l.includes("子域全授权")));
+  // URL input is normalized to the host
+  assert.equal(webRecon("https://sub.test.cn/a").authorized_domain, "sub.test.cn");
+});
+
+test("analyze_target routes a bare domain to web_recon (SRC gives only a host)", async () => {
+  const { analyzeTarget } = await import("../src/orchestrate.js");
+  const r = analyzeTarget("example.com");
+  assert.equal(r.target_type, "domain");
+  assert.equal(r.recommended_tools[0].tool, "mcp__verdex__web_recon");
+  assert.equal(analyzeTarget("https://app.target.cn/login").target_type, "domain");
+});
+
+test("impact_proof turns a theoretical finding into a data-safe, stop-at-first-proof plan", async () => {
+  const { impactProof } = await import("../src/proof.js");
+  const unknown = impactProof("nonsense");
+  assert.ok(Array.isArray(unknown.supported));
+  assert.ok(unknown.supported.includes("signing-forgery"));
+
+  const s = impactProof("signing-forgery", { target: "example.com" });
+  assert.equal(s.vuln_class, "signing-forgery");
+  assert.equal(s.authorized_target, "example.com");
+  assert.match(s.why_theoretical_rejected, /服务端信任/);
+  assert.match(s.data_safety_law[0], /自己.*测试账号/);
+  assert.ok(s.stop_point && s.stop_rule);
+  assert.ok(s.limitations.some((l) => l.includes("自己拥有的账号")));
+
+  const idor = impactProof("IDOR"); // case-insensitive
+  assert.equal(idor.vuln_class, "idor");
+  assert.ok(idor.minimal_proof.some((x) => x.includes("你自己的两个账号")));
+});
+
+test("impact_proof is wired into the MCP tool list", async () => {
+  const { PROOF_TOOLS } = await import("../src/proof.js");
+  assert.equal(PROOF_TOOLS.length, 1);
+  assert.equal(PROOF_TOOLS[0].name, "impact_proof");
 });

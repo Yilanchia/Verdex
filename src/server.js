@@ -32,7 +32,7 @@ export function createServer(options = {}) {
       const requestUrl = new URL(request.url || "/", "http://" + (request.headers.host || host));
       if (request.method === "GET" && requestUrl.pathname === "/api/health") {
         return sendJson(response, 200, {
-          name: "Verdex Workbench",
+          name: "Verdex",
           schema: "VerdexUI/v1",
           root: PROJECT_ROOT,
           defaultBrief: path.join(PROJECT_ROOT, "brief.example.json"),
@@ -122,7 +122,7 @@ export function startServer(options = {}) {
   const port = Number(options.port || DEFAULT_PORT);
   const server = createServer({ host, port });
   server.listen(port, host, () => {
-    process.stdout.write("Verdex Workbench running at http://" + host + ":" + port + "\n");
+    process.stdout.write("Verdex running at http://" + host + ":" + port + "\n");
     process.stdout.write("Local-only mode: network requests are disabled.\n");
   });
   return server;

@@ -1,8 +1,8 @@
-# Verdex Workbench
+# Verdex
 
 [![M8ven Score](https://m8ven.ai/badge/mcp/yilanchia-verdex-1s28o0?v=8acf7584845a7b298157c8c27d0f28fc)](https://m8ven.ai/mcp/yilanchia-verdex-1s28o0?s=readme)
 
-Verdex 是一个**证据优先**的本地安全研究工作台:源码审计、逆向、pwn 与 web 攻防辅助,并通过 MCP 让大模型(如 DeepSeek、Claude Code)自主编排这些能力。
+Verdex 是一套**证据优先**的本地安全研究工具集:源码审计、逆向、pwn、web 侦察与攻防辅助,并通过 MCP 让大模型(如 DeepSeek、Claude Code)**自主编排**这些能力——不是一张静态工具台,而是一个大模型主导的分析/取证/验证链(全程只读分析、只生成文本,不执行目标、不发起网络请求)。
 
 > **负责任使用**:Verdex 全程**只读分析 / 只生成文本**,不执行目标、不发起网络请求、不自主攻击。pwn/web 的脚手架工具需显式声明授权目标,仅限 CTF、你自建的实验室、或你拥有/被明确授权的系统。禁止用于未授权目标。
 
@@ -37,7 +37,7 @@ node src/cli.js mcp
 
 `node src/cli.js mcp` 启动一个零依赖的本地 MCP server（JSON-RPC 2.0 over stdio），把只读分析能力暴露为工具。全部只读、不访问网络、不生成载荷或攻击步骤；`scan` 的可选 brief 仍走 `validateBrief` 强制范围与红线。
 
-一站式入口：`analyze_target`——丢一个路径(目录或文件),自动识别类型(目录/ELF/PE/**.NET**/Mach-O/APK/IPA/小程序/DEX/固件 SquashFS·JFFS2·UBI/JS/HAR)并返回推荐的有序工具链。只做识别与路由,实际分析由被推荐的工具完成。
+一站式入口：`analyze_target`——丢一个路径(目录或文件)**或一个域名**,自动识别类型(目录/ELF/PE/**.NET**/Mach-O/APK/IPA/小程序/DEX/固件 SquashFS·JFFS2·UBI/JS/HAR/**域名**)并返回推荐的有序工具链。给域名(公益 SRC 常只给域名)时路由到 `web_recon`。只做识别与路由,实际分析由被推荐的工具完成。
 
 `dotnet_decompile`：.NET/CLR 程序集(.dll/.exe)反编译成 **C#**(ILSpy/ilspycmd 后端,只读不执行)。可选 `typeName` 聚焦某类型。需装 ilspycmd(`VERDEX_ILSPY` 指向 `ilspycmd.dll`)+ 对应 .NET runtime。C#/VB/F# 托管程序集通吃。
 
@@ -47,12 +47,16 @@ node src/cli.js mcp
 
 源码分析工具：`assets`、`map`、`scan`、`osint`、`report`（跑完整分析并在 `.verdex/runs` 存一份不可变快照:JSON + Markdown + HTML + SARIF 报告,返回各文件路径）。
 
-- `secrets`：扫描硬编码密钥——按服务商特征(AWS/GitHub/Google/Slack/Stripe/私钥/JWT 等)、**命名密钥常量**(`*_APP_KEY`/`*_SECRET`/`CLIENT_ID` 等按变量名判定)、**签名盐**(`appSecret=`/`&key=`)+ 高熵启发式识别,**默认脱敏**(只给前后几位 + value_sha256 + 文件行号,绝不输出密钥原文)。只读本地,不联网、不验证凭据。
+- `secrets`：扫描硬编码密钥——按服务商特征(AWS/GitHub/Google/Slack/Stripe/私钥/JWT 等)、**命名密钥常量**(`*_APP_KEY`/`*_SECRET`/`CLIENT_ID` 等按变量名判定)、**签名盐**(`appSecret=`/`&key=`)+ 高熵启发式识别,**默认脱敏**(只给前后几位 + value_sha256 + 文件行号,绝不输出密钥原文)。只读本地,不联网、不验证凭据。**每条发现按可证影响分级**:`direct`(服务端凭据/私钥,暴露即成立,适合直接上报)vs `conditional`(客户端密钥/签名盐,危害取决于服务端行为,静态证不了——单独上报多半被判"理论风险",需授权范围内动态验证);输出 `triage` 给出 report_ready / needs_dynamic_proof 分组。
 - `diff`：对比两次扫描快照(`.verdex/runs` 下的 run 目录),按证据指纹分出**新增 / 已修复 / 仍存在**的候选,带严重度统计——追踪"改了什么、修了什么、还剩什么"。只读。
+- `impact_proof`：把 secrets 的 `conditional` 发现(及 IDOR/SSRF/SQLi 等候选)从"条件性理论风险"升级成"审核可复核的已证影响"的**验证方案(仅文本,Verdex 不发请求)**。给一个 `vuln_class`(signing-forgery/idor/hardcoded-cred/ssrf/sqli/auth-bypass/open-redirect/xss/jwt),产出:**为何单纯静态会被判理论风险**(就像被 "条件性理论风险" 驳回那次)、**最小影响验证步骤**、**数据安全铁律**(越权演示只用你自己的第二账号、带外只打你自己的 canary、盲注只判存在绝不 dump)、**取证清单**、**怎么写报告才会被收录**、以及**点到为止的停止点**(证到影响成立即停)。追 ARTEX 的攻击链智力,但锁死数据安全 + 证到即停——Verdex 永远只产方案,执行由你在授权范围内亲自完成。
 
 Web 攻防工具（只读分析 / 只产文本,Verdex 不发起任何请求）：
+- `web_recon`：公益 SRC 常只给一个**域名**(没 APK/源码可静态分析)。此工具为**声明授权的域名**生成分阶段侦察剧本(**仅文本**):被动(子域/证书透明度/Wayback——不碰目标)→轻主动(httpx 探活+指纹)→主动(ffuf 目录/nuclei 模板,标注**需确认在 scope 内**+限速)。`domain` 必填=授权声明。剧本给工具(subfinder/httpx/nuclei/ffuf…)、命令、"该看什么"。Verdex **不发任何请求**,命令由你在授权范围自行执行。顶部 banner 写明:仅授权域、守项目规则(限速/禁爆破)、被动优先、**主域授权≠子域全授权**。
 - `har_analyze`：静态分析你抓的 HAR 流量(Burp/DevTools 导出)——缺失安全头、不安全 Cookie、CORS 任意源、反射参数(XSS 候选)、URL 泄露令牌、明文传输。
 - `web_poc`：生成 web 漏洞验证请求模板(curl + python,仅文本)。`url` 必填=显式声明授权目标,写进授权 banner;`kind` 支持 sqli/xss/ssrf/path/redirect。Verdex 不代为发送,由你审阅后在授权范围自行运行。禁止用于未授权系统。
+
+> web_recon 的三道闸(与 web_poc/frida_script 同款):① `domain` 是**必填的授权声明**;② Verdex **只产剧本文本**,从不向任何目标发请求;③ **人在环路**——命令由你审阅后在授权范围内运行,守项目规则。
 
 二进制逆向工具（证据分层，只静态解析、**绝不执行目标文件**）：
 

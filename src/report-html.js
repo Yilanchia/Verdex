@@ -48,7 +48,7 @@ export function renderReportHtml(analysis, brief = null) {
   <h2>待复核候选</h2>
   ${findingCards}
 </main>
-<footer>Verdex Workbench · evidence-first local analysis</footer>
+<footer>Verdex · evidence-first local analysis</footer>
 </body></html>`;
 }
 
