@@ -1,5 +1,7 @@
 # Verdex
 
+[![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/Yilanchia/badge.svg)](https://hub.xerj.org/contributors/Yilanchia)
+
 [![M8ven Score](https://m8ven.ai/badge/mcp/yilanchia-verdex-1s28o0?v=8acf7584845a7b298157c8c27d0f28fc)](https://m8ven.ai/mcp/yilanchia-verdex-1s28o0?s=readme)
 
 Verdex 是一套**证据优先**的本地安全研究工具集:源码审计、逆向、pwn、web 侦察与攻防辅助,并通过 MCP 让大模型(如 DeepSeek、Claude Code)**自主编排**这些能力——不是一张静态工具台,而是一个大模型主导的分析/取证/验证链(全程只读分析、只生成文本,不执行目标、不发起网络请求)。
