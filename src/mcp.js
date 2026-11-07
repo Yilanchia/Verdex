@@ -106,6 +106,20 @@ const TOOLS = [
 
 const ALL_TOOLS = [...TOOLS, ...REVERSE_TOOLS, ...PWN_TOOLS, ...WEB_TOOLS, ...MOBILE_TOOLS, ...SECRETS_TOOLS, ...FIRMWARE_TOOLS, ...JSDEOBF_TOOLS, ...ORCHESTRATE_TOOLS, ...FRIDA_TOOLS, ...DOTNET_TOOLS, ...ELECTRON_TOOLS, ...PROOF_TOOLS];
 
+// Optional lean tool surface for offline CTF pwn/re sessions. Setting
+// VERDEX_PROFILE=pwn only trims what tools/list advertises to the model
+// (saves context budget) — it does NOT remove capability: TOOL_MAP below
+// stays full, so any tool still dispatches if called. Default: full list.
+const PWN_PROFILE_TOOLS = [
+  ...TOOLS.filter((t) => ["assets", "map", "report"].includes(t.name)),
+  ...REVERSE_TOOLS,
+  ...PWN_TOOLS,
+  ...ORCHESTRATE_TOOLS,
+];
+function visibleTools() {
+  return process.env.VERDEX_PROFILE === "pwn" ? PWN_PROFILE_TOOLS : ALL_TOOLS;
+}
+
 // MCP tool annotations (hints for hosts). Verdex-wide truths: nothing is
 // destructive (no tool deletes/overwrites user data) and nothing touches the
 // network (openWorld=false). Default is a pure read-only analyzer; the few
@@ -150,7 +164,7 @@ export async function dispatch(message) {
     return ok(id, { protocolVersion: params?.protocolVersion || PROTOCOL_VERSION, capabilities: { tools: {} }, serverInfo: SERVER_INFO });
   }
   if (method === "tools/list") {
-    return ok(id, { tools: ALL_TOOLS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema, annotations: annotationsFor(name) })) });
+    return ok(id, { tools: visibleTools().map(({ name, description, inputSchema }) => ({ name, description, inputSchema, annotations: annotationsFor(name) })) });
   }
   if (method === "tools/call") return callTool(id, params);
   if (method === "ping") return ok(id, {});

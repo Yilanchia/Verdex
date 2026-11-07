@@ -273,6 +273,10 @@ test("manual assets and personal search stay local and evidence-backed", () => {
 });
 
 test("MCP server lists read-only tools and enforces brief redlines over stdio protocol", async () => {
+  // Asserts the full default tool surface — neutralize any ambient
+  // VERDEX_PROFILE=pwn that would trim tools/list.
+  const priorProfile = process.env.VERDEX_PROFILE;
+  delete process.env.VERDEX_PROFILE;
   const init = await dispatch({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2024-11-05" } });
   assert.equal(init.result.serverInfo.name, "verdex");
 
@@ -301,6 +305,8 @@ test("MCP server lists read-only tools and enforces brief redlines over stdio pr
     assert.ok(unknown.error);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
+    if (priorProfile === undefined) delete process.env.VERDEX_PROFILE;
+    else process.env.VERDEX_PROFILE = priorProfile;
   }
 });
 
@@ -926,20 +932,56 @@ test("bin_dossier requires a symbol and parses calls/strings from a real functio
 
 test("every MCP tool declares all four annotation hints as booleans", async () => {
   const { dispatch } = await import("../src/mcp.js");
-  const list = await dispatch({ jsonrpc: "2.0", id: 1, method: "tools/list" });
-  const tools = list.result.tools;
-  assert.ok(tools.length >= 30);
-  const HINTS = ["readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"];
-  for (const t of tools) {
-    assert.ok(t.annotations, `${t.name} has annotations`);
-    for (const h of HINTS) assert.equal(typeof t.annotations[h], "boolean", `${t.name}.${h} must be boolean`);
+  // This asserts the full tool surface, so neutralize any ambient
+  // VERDEX_PROFILE=pwn (common on the user's competition machine) that would
+  // otherwise trim the list under test.
+  const priorProfile = process.env.VERDEX_PROFILE;
+  delete process.env.VERDEX_PROFILE;
+  try {
+    const list = await dispatch({ jsonrpc: "2.0", id: 1, method: "tools/list" });
+    const tools = list.result.tools;
+    assert.ok(tools.length >= 30);
+    const HINTS = ["readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"];
+    for (const t of tools) {
+      assert.ok(t.annotations, `${t.name} has annotations`);
+      for (const h of HINTS) assert.equal(typeof t.annotations[h], "boolean", `${t.name}.${h} must be boolean`);
+    }
+    // Verdex-wide invariants: never destructive, never network.
+    assert.ok(tools.every((t) => t.annotations.destructiveHint === false));
+    assert.ok(tools.every((t) => t.annotations.openWorldHint === false));
+    // Artifact writers are honestly flagged not-read-only.
+    const writers = tools.filter((t) => !t.annotations.readOnlyHint).map((t) => t.name).sort();
+    assert.deepEqual(writers, ["asar_unpack", "fw_extract", "mobile_unpack", "report", "wxapkg_unpack"]);
+  } finally {
+    if (priorProfile === undefined) delete process.env.VERDEX_PROFILE;
+    else process.env.VERDEX_PROFILE = priorProfile;
   }
-  // Verdex-wide invariants: never destructive, never network.
-  assert.ok(tools.every((t) => t.annotations.destructiveHint === false));
-  assert.ok(tools.every((t) => t.annotations.openWorldHint === false));
-  // Artifact writers are honestly flagged not-read-only.
-  const writers = tools.filter((t) => !t.annotations.readOnlyHint).map((t) => t.name).sort();
-  assert.deepEqual(writers, ["asar_unpack", "fw_extract", "mobile_unpack", "report", "wxapkg_unpack"]);
+});
+
+test("VERDEX_PROFILE=pwn trims tools/list but keeps every tool callable", async () => {
+  const { dispatch } = await import("../src/mcp.js");
+  const priorProfile = process.env.VERDEX_PROFILE;
+  try {
+    // Baseline full surface with the profile off.
+    delete process.env.VERDEX_PROFILE;
+    const full = (await dispatch({ jsonrpc: "2.0", id: 1, method: "tools/list" })).result.tools;
+    // pwn profile advertises a strict, smaller subset.
+    process.env.VERDEX_PROFILE = "pwn";
+    const lean = (await dispatch({ jsonrpc: "2.0", id: 2, method: "tools/list" })).result.tools;
+    assert.ok(lean.length < full.length, "pwn list must be smaller than full list");
+    const leanNames = new Set(lean.map((t) => t.name));
+    assert.ok(leanNames.has("map") && leanNames.has("report"), "core recon tools stay visible");
+    // Capability is NOT removed: a tool hidden from the pwn list still dispatches.
+    const hidden = full.find((t) => !leanNames.has(t.name));
+    assert.ok(hidden, "expected at least one tool hidden under pwn profile");
+    const res = await dispatch({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: hidden.name, arguments: {} } });
+    // It must route to the handler (ok or a controlled tool error), never the
+    // -32602 "unknown tool" rejection — capability stays in TOOL_MAP.
+    assert.ok(!(res.error && res.error.code === -32602), `${hidden.name} must remain callable under pwn profile`);
+  } finally {
+    if (priorProfile === undefined) delete process.env.VERDEX_PROFILE;
+    else process.env.VERDEX_PROFILE = priorProfile;
+  }
 });
 
 test("scanSecrets triages findings by provable impact (direct vs conditional)", async () => {
