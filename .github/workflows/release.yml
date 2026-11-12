@@ -1,12 +1,18 @@
 name: Release
 
-# Publish both npm packages when a version tag is pushed:
-#   verdex      - CLI, library and MCP implementation (tools live here)
-#   verdex-mcp  - stdio entry package so `npx -y verdex-mcp` works
-# Requires an NPM_TOKEN repository secret (Automation token, publish rights).
+# MANUAL ONLY for now.
+#
+# Publishing to npm currently requires the maintainer's npm account to have 2FA
+# enabled: npm rejects publishes from accounts/tokens without it with
+# "Two-factor authentication or granular access token with bypass 2fa enabled is
+# required". Until 2FA is enabled and an NPM_TOKEN secret exists, this workflow is
+# manual-only so that pushing a version tag cannot produce a red CI run.
+#
+# To re-enable releases: enable 2FA on npm, add NPM_TOKEN to the repository
+# secrets, then restore the tag trigger below:
+#   push:
+#     tags: ["v*"]
 on:
-  push:
-    tags: ["v*"]
   workflow_dispatch:
 
 permissions:

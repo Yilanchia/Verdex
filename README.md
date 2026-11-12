@@ -38,35 +38,24 @@
 node src/cli.js doctor
 ```
 
-### 1) 起 MCP server
+### 1) 起 MCP server(从 GitHub 源码运行)
 
 ```bash
 git clone https://github.com/Yilanchia/Verdex.git
 cd Verdex
 npm ci
 
-# 方式 A:源码直跑(今天就能用)
+# 起 stdio MCP server,阻塞等待宿主连接
 node src/cli.js mcp
-
-# 方式 B:从 npm 安装(0.2.0 发布后)
-npx -y verdex-mcp
 ```
+
+> npm 包暂未发布(npm 现在要求发布者先启用 2FA)。发布后会补上 `npx -y verdex-mcp` 的一行安装;在那之前,GitHub 源码就是官方安装方式,功能完全一致。
 
 进程启动后阻塞等待 stdio,把下面任意一段配置贴进宿主即可。
 
 ### 2) 接进你的 agent
 
 **Claude Desktop / Cursor / Cline**(`claude_desktop_config.json` / `~/.cursor/mcp.json`):
-
-```json
-{
-  "mcpServers": {
-    "verdex": { "command": "npx", "args": ["-y", "verdex-mcp"] }
-  }
-}
-```
-
-源码方式(还没发布 npm 时):
 
 ```json
 {
@@ -78,6 +67,8 @@ npx -y verdex-mcp
   }
 }
 ```
+
+> npm 包发布后可以换成 `{ "command": "npx", "args": ["-y", "verdex-mcp"] }`,少一个克隆步骤。
 
 **DeepSeek Harness**(profile 的 `cordis.yml` / `verdex-mcp.patch.yml`):
 

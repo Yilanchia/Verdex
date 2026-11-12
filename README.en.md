@@ -35,25 +35,14 @@ Requires **Node.js >= 20** (CI covers 20/22/24).
 git clone https://github.com/Yilanchia/Verdex.git
 cd Verdex
 npm ci
-
-# Run the MCP server from source (works today)
 node src/cli.js mcp
-
-# Or, once 0.2.0 is on npm
-npx -y verdex-mcp
 ```
+
+> The npm packages are not published yet (npm now requires publishers to enable
+> 2FA). Until they are, the GitHub source checkout is the official install path —
+> same code, same tools. `npx -y verdex-mcp` will be added here after publication.
 
 Then wire it into your agent (Claude Desktop / Cursor / Cline share this shape):
-
-```json
-{
-  "mcpServers": {
-    "verdex": { "command": "npx", "args": ["-y", "verdex-mcp"] }
-  }
-}
-```
-
-Source checkout variant:
 
 ```json
 {
@@ -65,6 +54,9 @@ Source checkout variant:
   }
 }
 ```
+
+> After the npm publication you can shorten that to
+> `{ "command": "npx", "args": ["-y", "verdex-mcp"] }`.
 
 DeepSeek Harness (`cordis.yml`, or use the bundled `verdex-mcp.patch.yml`):
 

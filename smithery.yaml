@@ -1,5 +1,7 @@
 # Smithery configuration: https://smithery.ai/docs
 # Verdex is read-only and text-only; this command only starts the stdio server.
+# Deployed from the GitHub repository (no npm package required): Smithery
+# installs the Node dependencies, then runs the same source entry point.
 startCommand:
   type: stdio
   configSchema:
@@ -7,4 +9,4 @@ startCommand:
     properties: {}
     required: []
   commandFunction: |-
-    (config) => ({ command: 'npx', args: ['-y', 'verdex-mcp'] })
+    (config) => ({ command: 'node', args: ['src/cli.js', 'mcp'] })

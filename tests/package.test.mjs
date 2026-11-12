@@ -119,7 +119,10 @@ test("distribution scaffolding ships verdex + verdex-mcp consistently", () => {
 
   const smithery = fs.readFileSync(path.join(ROOT, "smithery.yaml"), "utf8");
   assert.match(smithery, /type: stdio/);
-  assert.match(smithery, /verdex-mcp/);
+  // Smithery deploys from the GitHub checkout, so it must not depend on the
+  // unpublished npm entry package.
+  assert.match(smithery, /command: 'node'/);
+  assert.match(smithery, /src\/cli\.js/);
 
   const release = fs.readFileSync(path.join(ROOT, ".github/workflows/release.yml"), "utf8");
   assert.match(release, /npm publish --provenance --access public/);

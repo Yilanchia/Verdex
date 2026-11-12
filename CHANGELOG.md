@@ -42,6 +42,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   current directory. Use `verdex scan <dir>` explicitly.
 - Unknown-tool, unsupported-method and tool-failure messages are bilingual
   (EN / 中文).
+- GitHub source checkout is the supported install path for `0.2.0`: the npm
+  packages are publish-ready but not published, because npm now requires
+  publishers to enable 2FA (this account has none) and `npx -y verdex-mcp`
+  therefore 404s. The README quickstart uses `node src/cli.js mcp`; the release
+  workflow is manual-only until 2FA + `NPM_TOKEN` are configured.
 - README restructured for a mixed audience: what it is, who it is for, a
   5-minute quickstart, the safety model, and a tool overview.
 

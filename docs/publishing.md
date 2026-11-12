@@ -11,6 +11,29 @@ Verdex ships two npm packages. They must be published in order:
 package. Both names were confirmed free on the official npm registry on 2026-11-12
 (`npm view verdex --registry https://registry.npmjs.org` → 404).
 
+> **Status (2026-11-12): not published yet.** GitHub source checkout is the
+> supported install path for 0.2.0. npm now rejects publishes from accounts
+> without 2FA; this account reports `tfa: false` (`npm profile get`), so every
+> `npm publish` returns:
+> `403 ... Two-factor authentication or granular access token with bypass 2fa enabled is required`.
+> GitHub CI (tests + tarball smoke test) is green; only the registry upload is
+> pending. See "Prerequisite" below to finish it later.
+
+## 0. Prerequisite: enable npm 2FA
+
+Publishing requires one of:
+
+- **Interactive 2FA**: enable an authentication app at
+  <https://www.npmjs.com/settings/yilanchia/security>, then pass
+  `--otp=<6-digit code>` (npm TOTP is **6 digits**; 8-digit codes are rejected).
+- **Granular token with Bypass 2FA**: create it *after* enabling 2FA
+  (<https://www.npmjs.com/settings/yilanchia/tokens>): Read and write,
+  All packages, **Bypass 2FA** on. Write it to `~/.npmrc` as
+  `//registry.npmjs.org/:_authToken=<token>`.
+
+Without 2FA, neither a token nor an OTP can publish. These are npm policy, not
+Verdex configuration.
+
 ## 1. Preflight
 
 > **Registry note:** this machine currently points npm at `registry.npmmirror.com`
@@ -81,12 +104,12 @@ If validation fails, check:
 
 ## 3. Smithery
 
-`smithery.yaml` starts `npx -y verdex-mcp` over stdio and declares an empty config
-schema. Claim the repository on <https://smithery.ai>, point it at the GitHub repo,
-and let it read `smithery.yaml`. Keep the description explicit about
-**read-only / text-only / authorized targets only** — directory reviewers treat
-"security tool" entries with suspicion, and the safety model is the strongest
-argument for approval.
+`smithery.yaml` starts `node src/cli.js mcp` from the GitHub checkout (no npm
+package required) and declares an empty config schema. Claim the repository on
+<https://smithery.ai>, point it at the GitHub repo, and let it read
+`smithery.yaml`. Keep the description explicit about **read-only / text-only /
+authorized targets only** — directory reviewers treat "security tool" entries with
+suspicion, and the safety model is the strongest argument for approval.
 
 ## 4. Directories that auto-crawl GitHub
 
@@ -94,7 +117,8 @@ argument for approval.
 needed, but the repo must clearly answer, in English:
 
 1. what the server does (README first paragraph),
-2. how to install/run it (`npx -y verdex-mcp`),
+2. how to install/run it (`git clone` + `node src/cli.js mcp`; `npx -y verdex-mcp`
+   once npm publication is done),
 3. what it will **not** do (read-only, text-only, authorized targets only),
 4. where the tool reference is (`docs/tools.md`).
 
