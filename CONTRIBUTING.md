@@ -92,6 +92,12 @@ git grep -nE "AKIA[0-9A-Z]{16}|sk_live_|ghp_|BEGIN (RSA |EC )?PRIVATE KEY" -- . 
 
 - Do not add AI attribution lines to commits.
 
+## Releases
+
+`verdex` and `verdex-mcp` are published together on a version tag; the full
+checklist (version bumps, npm, MCP registry, Smithery, directories) is in
+[docs/publishing.md](docs/publishing.md).
+
 ## Reporting bugs / security issues
 
 - Functional bugs: open a GitHub issue using the bug template (include

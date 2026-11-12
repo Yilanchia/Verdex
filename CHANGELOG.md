@@ -26,6 +26,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   high/critical findings.
 - `README.en.md`, `docs/tools.md` (full tool reference), issue templates, and
   PR template.
+- Distribution scaffolding: `server.json` for the official MCP registry,
+  `smithery.yaml`, a `verdex-mcp` stdio entry package (so `npx -y verdex-mcp`
+  resolves), and a tag-triggered `Release` workflow that publishes both packages
+  with npm provenance. See `docs/publishing.md`.
 
 ### Changed
 
@@ -40,6 +44,16 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (EN / 中文).
 - README restructured for a mixed audience: what it is, who it is for, a
   5-minute quickstart, the safety model, and a tool overview.
+
+### Fixed
+
+- Python AST analysis now tries `$PYTHON`, then `python3`, then `python`, instead
+  of assuming `python` exists. Linux and CI images that only ship `python3` keep
+  structured Python routes/definitions/dataflows; without any interpreter the
+  graph degrades to the bounded text fallback and reports it in `coverage`.
+- The AST dataflow test skips only the Python assertions when no interpreter is
+  available, so a clean Linux runner without Python still passes while still
+  checking TypeScript dataflows.
 
 ## [0.1.0] - 2026-10-14
 

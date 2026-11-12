@@ -1,0 +1,36 @@
+{
+  "name": "verdex-mcp",
+  "version": "0.2.0",
+  "mcpName": "io.github.Yilanchia/verdex",
+  "description": "Stdio MCP entry point for Verdex: read-only, text-only security research tools for agents.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Yilanchia",
+  "homepage": "https://github.com/Yilanchia/Verdex#readme",
+  "bugs": "https://github.com/Yilanchia/Verdex/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Yilanchia/Verdex.git",
+    "directory": "packages/verdex-mcp"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "security",
+    "reverse-engineering",
+    "static-analysis"
+  ],
+  "bin": {
+    "verdex-mcp": "bin.mjs"
+  },
+  "files": [
+    "bin.mjs",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "verdex": "^0.2.0"
+  }
+}

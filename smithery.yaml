@@ -1,0 +1,10 @@
+# Smithery configuration: https://smithery.ai/docs
+# Verdex is read-only and text-only; this command only starts the stdio server.
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties: {}
+    required: []
+  commandFunction: |-
+    (config) => ({ command: 'npx', args: ['-y', 'verdex-mcp'] })

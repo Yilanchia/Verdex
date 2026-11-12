@@ -96,6 +96,37 @@ test("bin/verdex-mcp.mjs speaks MCP over stdio", async () => {
   }
 });
 
+test("distribution scaffolding ships verdex + verdex-mcp consistently", () => {
+  const server = JSON.parse(fs.readFileSync(path.join(ROOT, "server.json"), "utf8"));
+  assert.equal(server.name, "io.github.Yilanchia/verdex");
+  assert.equal(server.version, pkg.version);
+  assert.equal(server.repository.url, "https://github.com/Yilanchia/Verdex");
+  assert.equal(server.packages.length, 1);
+  const npmPackage = server.packages[0];
+  assert.equal(npmPackage.registryType, "npm");
+  assert.equal(npmPackage.identifier, "verdex-mcp");
+  assert.equal(npmPackage.version, pkg.version);
+  assert.equal(npmPackage.transport.type, "stdio");
+
+  const wrapper = JSON.parse(fs.readFileSync(path.join(ROOT, "packages/verdex-mcp/package.json"), "utf8"));
+  assert.equal(wrapper.name, "verdex-mcp");
+  assert.equal(wrapper.version, pkg.version);
+  assert.equal(wrapper.mcpName, server.name, "registry mcpName must equal the server name");
+  assert.deepEqual(wrapper.bin, { "verdex-mcp": "bin.mjs" });
+  assert.ok(wrapper.dependencies.verdex, "the entry package depends on the CLI package");
+  assert.match(readFirstLine("packages/verdex-mcp/bin.mjs"), /^#!\/usr\/bin\/env node$/);
+  assert.match(fs.readFileSync(path.join(ROOT, "packages/verdex-mcp/bin.mjs"), "utf8"), /from "verdex\/src\/mcp.js"/);
+
+  const smithery = fs.readFileSync(path.join(ROOT, "smithery.yaml"), "utf8");
+  assert.match(smithery, /type: stdio/);
+  assert.match(smithery, /verdex-mcp/);
+
+  const release = fs.readFileSync(path.join(ROOT, ".github/workflows/release.yml"), "utf8");
+  assert.match(release, /npm publish --provenance --access public/);
+  assert.match(release, /working-directory: packages\/verdex-mcp/);
+  assert.match(release, /NPM_TOKEN/);
+});
+
 test("doctor reports local backends and a tool surface without network access", async () => {
   const { doctor } = await import("../src/doctor.js");
   const report = await doctor();

@@ -1,0 +1,37 @@
+name: Release
+
+# Publish both npm packages when a version tag is pushed:
+#   verdex      - CLI, library and MCP implementation (tools live here)
+#   verdex-mcp  - stdio entry package so `npx -y verdex-mcp` works
+# Requires an NPM_TOKEN repository secret (Automation token, publish rights).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # npm provenance
+
+jobs:
+  npm:
+    name: publish to npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Publish verdex (CLI + library + tools)
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish verdex-mcp (stdio entry)
+        working-directory: packages/verdex-mcp
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
