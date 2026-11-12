@@ -1,102 +1,85 @@
 # Verdex
 
 [![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/Yilanchia/badge.svg)](https://hub.xerj.org/contributors/Yilanchia)
-
 [![M8ven Score](https://m8ven.ai/badge/mcp/yilanchia-verdex-1s28o0?v=8acf7584845a7b298157c8c27d0f28fc)](https://m8ven.ai/mcp/yilanchia-verdex-1s28o0?s=readme)
+[![CI](https://github.com/Yilanchia/Verdex/actions/workflows/ci.yml/badge.svg)](https://github.com/Yilanchia/Verdex/actions/workflows/ci.yml)
 
-Verdex 是一套**证据优先**的本地安全研究工具集:源码审计、逆向、pwn、web 侦察与攻防辅助,并通过 MCP 让大模型(如 DeepSeek、Claude Code)**自主编排**这些能力——不是一张静态工具台,而是一个大模型主导的分析/取证/验证链(全程只读分析、只生成文本,不执行目标、不发起网络请求)。
+**Evidence-first local security research toolset, driven by LLMs over MCP.**
+**证据优先的本地安全研究工具集**:把源码审计、二进制逆向、pwn/web 攻防辅助、移动端与固件分析,变成大模型可自主编排的**只读工具链**——不是一张静态工具台,而是一条"资产证据 → 静态关系 → 数据流候选 → 人工结论"的可复核链路。
 
-> **负责任使用**:Verdex 全程**只读分析 / 只生成文本**,不执行目标、不发起网络请求、不自主攻击。pwn/web 的脚手架工具需显式声明授权目标,仅限 CTF、你自建的实验室、或你拥有/被明确授权的系统。禁止用于未授权目标。
+> **负责任使用 / Responsible use**
+> Verdex 全程**只读分析、只生成文本**:不执行目标、不发起网络请求、不自主攻击、不生成专打未授权目标的载荷。`pwn_*` / `web_poc` / `web_recon` / `frida_script` / `impact_proof` 必须显式声明**授权目标**(CTF、自建实验室、你拥有或被明确授权的系统),且只产出由你审阅、由你在授权范围内亲自运行的文本。禁止用于未授权目标。
 
-核心是一个可验证的本地分析内核：
+---
 
-- 资产清单保留文件、行号和原文片段，不把字符串猜测当成事实。
-- 代码图记录文件、函数、路由、导入和调用关系。
-- 数据流分析寻找请求输入到危险操作的候选路径，并明确标记为静态推断。
-- 发现使用确定性证据指纹去重，保留来源和证据链。
-- brief 强制执行范围、漏洞类型、最低置信度和禁止越界/爆破/载荷红线。
-- 被动归档支持 Nuclei 风格 JSONL、常见 JSON 结果和基础 SARIF，不把外部结果升级为已验证漏洞。
-- 本地 OSINT 提取显式邮箱、电话、社交资料链接、姓名字段和用户名字段，默认脱敏并保留文件证据。
-- 分析输出带 schema、覆盖统计和限制项，方便后续接入代理、AST 引擎和运行时证据。
+## 这是什么
 
-当前内核只读取本地作业夹，不发起网络请求，不生成利用代码或攻击步骤。
+- **一个 MCP server**:`verdex-mcp` 通过 stdio + JSON-RPC 2.0 暴露 34 个只读工具,DeepSeek Harness / Claude Code / Claude Desktop / Cursor / Cline / Codex 等任何 MCP 宿主都能直接驱动。
+- **一套分析内核**:AST 代码图、规则命中、source→sink 数据流、证据指纹去重、brief 范围与红线、不可变 run 快照(JSON + Markdown + 自包含 HTML + SARIF)。
+- **一个本地工作台**:`npm start` 打开 `http://127.0.0.1:3210`,选目录、补资产、看候选、保存快照。只监听本机,分析接口不联网。
 
-## 使用
+## 给谁用
 
-```powershell
-npm test
-npm start
-node src/cli.js assets D:\path\to\target
-node src/cli.js map D:\path\to\target
-node src/cli.js osint D:\path\to\target
-node src/cli.js scan D:\path\to\target
-node src/cli.js scan D:\path\to\target D:\path\to\brief.json
-node src/cli.js report D:\path\to\target D:\path\to\output D:\path\to\brief.json
-node src/cli.js mcp
+| 你是谁 | Verdex 帮你做什么 | 从哪开始 |
+| --- | --- | --- |
+| 安全研究员 / 源码审计 | 把证据链、数据流候选、去重指纹整理成可复核的快照,省掉手工汇总 | `scan` → `report` |
+| SRC / 漏洞赏金猎人 | 给一个域名生成分阶段侦察剧本;把"条件性理论风险"升级成可复核的已证影响方案 | `analyze_target` → `web_recon` / `impact_proof` |
+| 逆向 / pwn / CTF 选手 | checksec、gadget、libc 偏移、偏移求解、gdb 脚本、exploit 脚手架、反编译 | `VERDEX_PROFILE=pwn` + `pwn_*` / `bin_decompile` |
+| 想搞懂自己 App 的开发者 | 解 APK/IPA/小程序/Electron/固件,看权限、导出组件、硬编码密钥、明文传输 | `mobile_unpack` → `secrets` / `har_analyze` |
+
+## 5 分钟上手
+
+### 0) 环境
+
+- Node.js **>= 20**(CI 覆盖 20 / 22 / 24)
+- 可选后端:`binutils`(逆向基础)、Ghidra 或 IDA(反编译)、jadx(Android)、ilspycmd(.NET)、WSL + squashfs-tools(固件)。装没装、装在哪,一条命令说清楚:
+
+```bash
+node src/cli.js doctor
 ```
 
-## MCP server(让大模型主导分析）
+### 1) 起 MCP server
 
-`node src/cli.js mcp` 启动一个零依赖的本地 MCP server（JSON-RPC 2.0 over stdio），把只读分析能力暴露为工具。全部只读、不访问网络、不生成载荷或攻击步骤；`scan` 的可选 brief 仍走 `validateBrief` 强制范围与红线。
+```bash
+git clone https://github.com/Yilanchia/Verdex.git
+cd Verdex
+npm ci
 
-一站式入口：`analyze_target`——丢一个路径(目录或文件)**或一个域名**,自动识别类型(目录/ELF/PE/**.NET**/Mach-O/APK/IPA/小程序/DEX/固件 SquashFS·JFFS2·UBI/JS/HAR/**域名**)并返回推荐的有序工具链。给域名(公益 SRC 常只给域名)时路由到 `web_recon`。只做识别与路由,实际分析由被推荐的工具完成。
+# 方式 A:源码直跑(今天就能用)
+node src/cli.js mcp
 
-`dotnet_decompile`：.NET/CLR 程序集(.dll/.exe)反编译成 **C#**(ILSpy/ilspycmd 后端,只读不执行)。可选 `typeName` 聚焦某类型。需装 ilspycmd(`VERDEX_ILSPY` 指向 `ilspycmd.dll`)+ 对应 .NET runtime。C#/VB/F# 托管程序集通吃。
+# 方式 B:从 npm 安装(0.2.0 发布后)
+npx -y verdex-mcp
+```
 
-`asar_unpack`：解包 Electron `.asar` 归档(纯 Node,防路径穿越,只读):提取并清点 js/json/html/css/.node,js 可路由 `js_deobfuscate`、`.node` 原生插件可 `bin_decompile`。桌面 Electron 应用逆向入口。
+进程启动后阻塞等待 stdio,把下面任意一段配置贴进宿主即可。
 
-`bin_dossier`:单函数结构化档案(对标 REA function dossier)——给一个 `symbol`,产出它的反汇编 + 调用的函数(`calls_out`)+ 引用的字符串(`string_xrefs`)+ 伪 C(装了 IDA/Ghidra 时)。快速看懂一个函数在干什么。
+### 2) 接进你的 agent
 
-源码分析工具：`assets`、`map`、`scan`、`osint`、`report`（跑完整分析并在 `.verdex/runs` 存一份不可变快照:JSON + Markdown + HTML + SARIF 报告,返回各文件路径）。
+**Claude Desktop / Cursor / Cline**(`claude_desktop_config.json` / `~/.cursor/mcp.json`):
 
-- `secrets`：扫描硬编码密钥——按服务商特征(AWS/GitHub/Google/Slack/Stripe/私钥/JWT 等)、**命名密钥常量**(`*_APP_KEY`/`*_SECRET`/`CLIENT_ID` 等按变量名判定)、**签名盐**(`appSecret=`/`&key=`)+ 高熵启发式识别,**默认脱敏**(只给前后几位 + value_sha256 + 文件行号,绝不输出密钥原文)。只读本地,不联网、不验证凭据。**每条发现按可证影响分级**:`direct`(服务端凭据/私钥,暴露即成立,适合直接上报)vs `conditional`(客户端密钥/签名盐,危害取决于服务端行为,静态证不了——单独上报多半被判"理论风险",需授权范围内动态验证);输出 `triage` 给出 report_ready / needs_dynamic_proof 分组。
-- `diff`：对比两次扫描快照(`.verdex/runs` 下的 run 目录),按证据指纹分出**新增 / 已修复 / 仍存在**的候选,带严重度统计——追踪"改了什么、修了什么、还剩什么"。只读。
-- `impact_proof`：把 secrets 的 `conditional` 发现(及 IDOR/SSRF/SQLi 等候选)从"条件性理论风险"升级成"审核可复核的已证影响"的**验证方案(仅文本,Verdex 不发请求)**。给一个 `vuln_class`(signing-forgery/idor/hardcoded-cred/ssrf/sqli/auth-bypass/open-redirect/xss/jwt),产出:**为何单纯静态会被判理论风险**(就像被 "条件性理论风险" 驳回那次)、**最小影响验证步骤**、**数据安全铁律**(越权演示只用你自己的第二账号、带外只打你自己的 canary、盲注只判存在绝不 dump)、**取证清单**、**怎么写报告才会被收录**、以及**点到为止的停止点**(证到影响成立即停)。追 ARTEX 的攻击链智力,但锁死数据安全 + 证到即停——Verdex 永远只产方案,执行由你在授权范围内亲自完成。
+```json
+{
+  "mcpServers": {
+    "verdex": { "command": "npx", "args": ["-y", "verdex-mcp"] }
+  }
+}
+```
 
-Web 攻防工具（只读分析 / 只产文本,Verdex 不发起任何请求）：
-- `web_recon`：公益 SRC 常只给一个**域名**(没 APK/源码可静态分析)。此工具为**声明授权的域名**生成分阶段侦察剧本(**仅文本**):被动(子域/证书透明度/Wayback——不碰目标)→轻主动(httpx 探活+指纹)→主动(ffuf 目录/nuclei 模板,标注**需确认在 scope 内**+限速)。`domain` 必填=授权声明。剧本给工具(subfinder/httpx/nuclei/ffuf…)、命令、"该看什么"。Verdex **不发任何请求**,命令由你在授权范围自行执行。顶部 banner 写明:仅授权域、守项目规则(限速/禁爆破)、被动优先、**主域授权≠子域全授权**。
-- `har_analyze`：静态分析你抓的 HAR 流量(Burp/DevTools 导出)——缺失安全头、不安全 Cookie、CORS 任意源、反射参数(XSS 候选)、URL 泄露令牌、明文传输。
-- `web_poc`：生成 web 漏洞验证请求模板(curl + python,仅文本)。`url` 必填=显式声明授权目标,写进授权 banner;`kind` 支持 sqli/xss/ssrf/path/redirect。Verdex 不代为发送,由你审阅后在授权范围自行运行。禁止用于未授权系统。
+源码方式(还没发布 npm 时):
 
-> web_recon 的三道闸(与 web_poc/frida_script 同款):① `domain` 是**必填的授权声明**;② Verdex **只产剧本文本**,从不向任何目标发请求;③ **人在环路**——命令由你审阅后在授权范围内运行,守项目规则。
+```json
+{
+  "mcpServers": {
+    "verdex": {
+      "command": "node",
+      "args": ["/absolute/path/to/Verdex/src/cli.js", "mcp"]
+    }
+  }
+}
+```
 
-二进制逆向工具（证据分层，只静态解析、**绝不执行目标文件**）：
-
-- `bin_info`（文件类型/架构/头/段）、`bin_symbols`（符号与动态导入导出）、`bin_strings`（带偏移字符串）、`bin_disasm`（objdump 反汇编，可指定符号）。基于本机 binutils（objdump/nm/strings/file）。
-- `bin_decompile`（反编译出伪 C，可选 `symbol` 只反编译单函数）。**双后端**:优先 IDA Pro / Hex-Rays(设 `VERDEX_IDA` 指向 `idat.exe`),未找到 IDA 时自动回退到 **Ghidra**(免费,设 `VERDEX_GHIDRA` 指向 `support/analyzeHeadless`,需 JDK 21+)。两者都把目标拷到临时目录、headless 运行、读回结果后清理,全程只分析不执行目标。IDA 不在也能用,对开源用户友好。
-
-- `reconstruct`（源码重建）：打包伪 C（IDA）+ 符号 + 字符串 + 一份结构化**重建指令**（`reconstruction_brief`，编码四项侧重:忠实不幻觉、可读性、结构恢复、调用关系），交由调用方模型（如 DeepSeek）重命名、补类型、加注释、译回接近原始风格的可读源码。可选 `symbol` 只重建单函数。
-
-反编译伪 C 是对二进制的**重建推断**，不是无损还原原始源码——注释、宏、局部变量名在编译后已永久丢失。`reconstruct` 工具本身**不调用 LLM、不访问网络、不执行目标**:它只准备证据和指令,真正的重建由驱动它的模型在回复中完成。
-
-### 利用辅助工具（仅限授权靶场）
-
-以下工具用于在 **你拥有或被明确授权的目标**（CTF、自建实验室）上辅助 exploit 开发。它们**全部只读分析本地二进制 / 只生成文本**——Verdex 代码里没有联网、发包或执行攻击的能力,利用动作由使用者自行完成。禁止用于未授权系统。
-
-- `pwn_checksec`：静态读出缓解措施。ELF:NX/Canary/PIE/RELRO/Fortify;PE:DEP/ASLR/HighEntropy/CFG/SEH。
-- `pwn_gadgets`：从反汇编里搜 ROP gadget（以 `ret` 结尾的短序列），可选 `filter`（如 `pop rdi`）和 `maxLen`。
-- `pwn_template`：生成 pwntools exploit 脚手架（**仅文本**）。`target` 必填,显式声明授权目标（`local` 或 `host:port`）,会写进脚本顶部的授权 banner。Verdex 只产出脚本,**不代为运行、不代为连接**;审阅并确认授权后由你自己执行。
-- `pwn_cyclic`：De Bruijn 循环模式生成 / 偏移反查（纯计算,不涉及二进制或执行）。求栈溢出偏移的标准手法:生成模式→喂给你自己运行的目标→用崩溃时 RSP/EIP 的值反查偏移。
-- `pwn_gdbscript`：生成 gdb/pwndbg 动态分析脚本（**仅文本**:断点、看栈/内存、求偏移的命令骨架）。由你在自己授权环境里 `gdb -x 脚本 ./bin` 运行;Verdex 不执行目标、不连接任何系统。
-- `pwn_libc`：从 libc.so 提取 exploit 所需偏移——常用符号(system/execve/puts/__free_hook/__malloc_hook/__libc_start_main/environ…)、`/bin/sh` 字符串偏移、libc 版本。纯静态读 ELF,只读不执行;堆题/ret2libc 必备。无符号表(内存 dump/strip)时给出按版本比对 libc-database 的提示。
-
-- `frida_script`：生成 Frida 动态分析脚本(**仅文本,Verdex 不 attach / 不注入 / 不运行**)。`target` 必填=授权目标声明(包名/进程)。`kind`:`unpack`(脱壳 dump 内存 dex——拿加壳 App 的业务代码)、`hook`(hook 指定 `className.method` 抓参数/返回)、`crypto`(抓运行时 key/IV/明文/算法)、`network`(抓 okhttp URL/headers 看签名怎么拼)。由你审阅后在**自己授权的设备/App** 上 `frida -U -f <target> -l x.js` 运行。
-
-> 动态分析的三道闸:① `target` 是**必填的授权目标声明**;② Verdex **只产脚本文本**,从不 attach/注入/运行;③ **人在环路**——模型提议、你审阅批准并亲自运行。静态够不着的(脱壳、运行时密钥、真实请求参数)在**你拥有或被授权的目标**上用动态补齐。`pwn_cyclic` 纯计算、`pwn_gdbscript`/`frida_script` 只生成脚本文本——执行都由你在授权环境完成。
-
-移动端工具（只读解包,不执行包内代码;仅限你拥有或被授权的 app）：
-- `mobile_unpack`：解包 APK/IPA/AAB/JAR(ZIP 容器)并清点内容,把原生库(`.so`/`.dylib`/Mach-O)、DEX、JS、小程序包、manifest 分类,并抽出原生库到可直接喂给 `bin_decompile` 的路径。**自动解码二进制 AndroidManifest**(纯 Node AXML 解析)输出攻击面:包名/版本/权限列表/导出组件/debuggable/allowBackup/cleartext/网络安全配置。
-- 原生库(ELF/Mach-O ARM)现可直接经 `bin_decompile`(IDA/Ghidra)反编译——`detectFormat` 已支持 Mach-O(thin/fat、32/64 位),解锁 iOS/macOS 原生二进制。
-- `wxapkg_unpack`：解包微信小程序 `.wxapkg` 包(自定义二进制格式,纯 Node 解析,防路径穿越),提取并清点 js/wxml/wxss/json;JS 可路由到 `scan` 分析逻辑。
-- `dex_decompile`：用 jadx 把 APK/DEX 反编译成 **Java**(只读,不运行 app)。清点 package/class,可选 `className` 返回指定类的 Java 源码。需装 jadx(设 `VERDEX_JADX` 指向 `bin/jadx`,或放在常见路径),jadx 需 JDK 11+(你的 JDK 21 够)。**反编译失败("Method not decompiled")时自动从 Kotlin `@DebugMetadata`/`@Metadata` 注解恢复**:局部变量名、挂起点行号、类成员名——即使方法体没还原,也能推断逻辑结构。
-- `js_deobfuscate`：JS 反混淆辅助(**纯静态,绝不执行脚本**)。解 `\xHH`/`\uHHHH` 转义揪出藏的 URL/字符串、把压缩成一行的代码美化成可读、识别混淆特征(`_0x` 标识符 / Dean Edwards packer / eval / atob / 大字符串数组)、提取 URL/IP/base64。字符串数组等运行时解码需执行才现形,本工具不做(越红线)。
-
-物联网固件工具（纯静态,只读,不解包不执行;仅限你拥有或被授权的设备）：
-- `fw_scan`：固件镜像分流(mini-binwalk)。扫描内嵌文件系统(SquashFS/CramFS/JFFS2/UBI)、压缩块(gzip/xz/lzma/bzip2/lzo)、引导头(U-Boot/TRX/DTB/Android boot/cpio)、ELF、PEM 的特征与**偏移**,每个命中附建议解包工具;并给**熵分布图**标出加密/压缩区段(整体高熵且无特征→可能是加密固件)。
-- `fw_extract`：解包 **SquashFS** 固件镜像(Windows 下经 WSL 调 `unsquashfs`,Linux 原生)并清点 rootfs——原生 ELF(抽出可喂 `bin_decompile`)、配置、脚本、凭据文件(passwd/密钥等)。需 WSL 里装 `squashfs-tools`(可设 `VERDEX_WSL_DISTRO` 指定发行版)。
-- 解包后得到 rootfs:ELF→`bin_decompile`、配置/脚本→`scan`、硬编码凭据→`secrets`,直接复用现有能力。其他文件系统(JFFS2/UBI)先用 `fw_scan` 定位,再用对应工具(jefferson/ubireader)。
-
-接入 DeepSeek Harness（dsh）：在 profile 的 `cordis.yml` 里加一个 MCP 客户端实例，大模型即可以 `mcp__verdex__scan` 等名字调用：
+**DeepSeek Harness**(profile 的 `cordis.yml` / `verdex-mcp.patch.yml`):
 
 ```yaml
 - id: mcp-verdex
@@ -105,65 +88,122 @@ Web 攻防工具（只读分析 / 只产文本,Verdex 不发起任何请求）�
     serverName: verdex
     transport: stdio
     command: node
-    args: ['/path/to/verdex/src/cli.js', 'mcp']
+    args: ['/absolute/path/to/Verdex/src/cli.js', 'mcp']
 ```
 
-同样的 server 也可被 Claude Code、Codex 等 MCP 客户端复用。
+挂载后模型会看到 `mcp__verdex__scan`、`mcp__verdex__bin_decompile` 等工具。`verdex-mcp.patch.yml` 是现成的 dsh 补丁文件,`dsh web --patch verdex-mcp.patch.yml` 可一次性试用。
 
-### 在 dsh 里挂载（已验证）
+### 3) 跑通第一次
 
-仓库根目录的 `verdex-mcp.patch.yml` 是一个 dsh 补丁文件（用 `insert` 语法把 Verdex 挂进插件树）。两种用法：
+在对话里依次让 agent 调:
 
-- 一次性试用（不改动你的 dsh 配置）：
+1. `analyze_target` —— 丢一个**本地路径**或**你被授权的域名**,它识别类型并返回推荐工具链。
+2. `scan` —— 对目录跑完整静态分析(资产、代码图、规则、数据流候选)。
+3. `report` —— 存一份不可变快照,打开返回的 `report.html` 就能看到严重度看板与证据链。
+4. 想让人看懂?`explain` 把任意一条发现翻译成"这是什么 / 为什么要紧 / 该怎么办"。
 
-  ```powershell
-  dsh web --patch /path/to/verdex-mcp.patch.yml
-  ```
+```text
+$ node src/cli.js scan ./samples/demo
+{ "schema": "VerdexProject/v1", "assets": { ... }, "scan": { "findings": [ ... ] } }
 
-- 永久挂载：把 `verdex-mcp.patch.yml` 里的 `- insert:` 块追加到 `~/.dsh/profiles/web/cordis.patch.yml`（放在 `dsh-skin managed` 受管区块**之外**，别碰那段）。
-
-挂载后，模型会看到 `mcp__verdex__scan`、`mcp__verdex__bin_decompile`、`mcp__verdex__bin_disasm` 等工具。可用 `dsh web --patch ... --dump-config` 确认条目已合成进配置树。
-
-运行 `npm start` 后访问 `http://127.0.0.1:3210`。前端是本地零依赖工作台：可以选择工作目录、手动补充域名/URL/IP 资产、填写 brief，查看覆盖、资产面、脱敏 OSINT 观察及待复核候选。服务只监听本机地址，分析接口不会主动发起网络请求。
-
-分析完成后可以点击“保存快照”。工作台会在 `.verdex/runs` 中保存不可变的 `analysis.json`、`findings.json`、脱敏 `osint.json`、Markdown 报告（`report.md`，含执行摘要/严重度统计）、一份自包含的 **HTML 报告**（`report.html`，内联样式、严重度看板、证据链、修复方向），以及一份 **SARIF 2.1.0**（`report.sarif`）——可直接上传到 GitHub 代码扫描、在 PR 里标注,或用 VS Code 的 SARIF 查看器打开。总览页的“运行记录”可以查看历史摘要并下载报告。
-
-“个人查找”是独立功能：输入已知邮箱、手机号、用户名、姓名或资料链接后，只在当前工作目录中做精确文本匹配，结果默认脱敏并保留文件和行号证据。它不会访问互联网、做身份推断或账号关联。
-
-“AI 设置”支持 OpenAI-compatible 和本地模型端点。AI 默认关闭，只有明确开启网络请求并点击“复核当前候选”才会发送有限的候选证据；远程端点必须使用 HTTPS，本地模型可使用 `http://127.0.0.1`。API Key 仅保存在当前服务进程内存，不写入 `.verdex/ai-settings.json`，服务重启后需要重新输入。
-
-`scan` 输出一份 JSON 分析结果，包含资产、代码图、静态规则命中、数据流候选和被动结果观察。候选必须回到原文件核对后，才能进入人工复核清单。
-
-`report` 会在输出目录建立一次不可变运行快照，写入 `analysis.json`、`findings.json`、脱敏策略下的 `osint.json` 和 `report.md`。brief 的最小格式：
-
-```json
-{
-  "schema": "VerdexBrief/v1",
-  "scope": {
-    "include": ["*.example.com"],
-    "exclude": ["dev.example.com"]
-  },
-  "vuln_classes": ["sql", "ssrf", "xss"],
-  "min_confidence": "medium",
-  "redlines": ["no-payload", "no-bruteforce", "no-out-of-scope"],
-  "allow": ["read_workspace", "parse_artifacts"]
-}
+$ node src/cli.js report ./samples/demo
+{ "saved": { "markdown": ".verdex/runs/<id>/report.md", "html": ".../report.html", "sarif": ".../report.sarif" } }
 ```
 
-brief 缺失 `include`、包含危险授权，或试图降低强制红线时会直接拒绝。`vuln_classes` 支持 `sqli`、`rce`、`path-traversal` 等常用别名。
+### 4) 命令行也顺手
 
-OSINT 默认只读取本地作业夹，不访问网络服务，不做姓名反查、身份关联或数据经纪查询。默认输出脱敏值；可以在 brief 中限定类别：
-
-```json
-{
-  "osint": {
-    "enabled": true,
-    "categories": ["email", "phone", "social-profile", "person-name", "username"],
-    "reveal": false
-  }
-}
+```bash
+node src/cli.js scan   <dir> [brief.json]     # 完整静态分析
+node src/cli.js assets <dir>                  # 域名/URL/IP + 文件行号
+node src/cli.js map    <dir>                  # 代码图(文件/函数/路由/调用)
+node src/cli.js osint  <dir> [brief.json]     # 本地 OSINT,默认脱敏
+node src/cli.js report <dir> [out] [brief]    # 不可变快照:JSON/MD/HTML/SARIF
+node src/cli.js doctor                        # 自检后端
+node src/cli.js --version | help
 ```
 
-## 设计方向
+## 安全模型:三道闸 + 只读原则
 
-工程采用四层证据模型：资产证据、静态关系、数据流候选、人工结论。每层保留 authority、epistemic state、confidence、coverage 和 limitations，后续接入 AST、Semgrep、浏览器被动观测或其他分析器时，不会把推断结果伪装成运行时事实。
+Verdex 的立身之本是**只读、只产文本、不自主攻击**。这条线写在代码里,不是写在 README 里:
+
+| 闸 | 含义 | 落在哪里 |
+| --- | --- | --- |
+| ① 授权声明必填 | `web_recon` 要 `domain`,`web_poc` 要 `url`,`pwn_template` 要 `target`,`frida_script` 要 `target`;缺失直接拒绝 | 工具入参校验 + 授权 banner |
+| ② 只产文本 | 从不发请求、不 attach/注入、不执行目标、不代跑命令 | 模块里没有网络/注入能力;测试断言 `openWorldHint:false` |
+| ③ 人在环路 | 生成的命令/脚本由你审阅后在授权范围亲自运行 | 输出里写明"你在授权范围自行执行"与停止点 |
+
+此外:
+- `brief` 强制范围、漏洞类型、最低置信度与 `no-payload / no-bruteforce / no-out-of-scope` 红线;试图降低红线会被拒绝。
+- 所有发现都是**待人工复核的静态推断**,不是"已验证漏洞";报告里明确标注 epistemic state 与 limitations。
+- `report` 的 HTML 自包含、可离线打开;`.verdex/runs` 是不可变快照,便于复盘与对比(`diff`)。
+
+## 工具一览(34)
+
+完整清单、输入参数、后端依赖见 **[docs/tools.md](docs/tools.md)**。
+
+| 分类 | 工具 | 你需要什么 |
+| --- | --- | --- |
+| 源码 / 项目 | `assets` `map` `scan` `osint` `report` `diff` `secrets` | 无(纯 Node) |
+| 编排 | `analyze_target` | 无 |
+| 二进制逆向 | `bin_info` `bin_symbols` `bin_strings` `bin_disasm` `bin_dossier` `bin_decompile` `reconstruct` | binutils;反编译需 IDA 或 Ghidra |
+| pwn 辅助(仅授权靶场) | `pwn_checksec` `pwn_gadgets` `pwn_template` `pwn_cyclic` `pwn_gdbscript` `pwn_libc` | binutils;生成文本,不连接/不执行 |
+| Web 攻防辅助 | `web_recon` `har_analyze` `web_poc` | 你抓的 HAR;生成剧本/请求模板 |
+| 移动端 | `mobile_unpack` `wxapkg_unpack` `dex_decompile` | 纯 Node;jadx 用于 DEX→Java |
+| 固件 | `fw_scan` `fw_extract` | WSL + squashfs-tools(Windows) |
+| JS / Electron / .NET | `js_deobfuscate` `asar_unpack` `dotnet_decompile` | 纯 Node;ilspycmd 用于 .NET |
+| 动态辅助 / 影响验证 | `frida_script` `impact_proof` | 只需授权声明;只产文本 |
+
+小提示:在 pwn/CTF 环境里设 `VERDEX_PROFILE=pwn`,只向模型暴露精简工具面(省上下文),能力不删——隐藏的工具仍可被调用。
+
+## 本地 GUI
+
+```bash
+npm start          # http://127.0.0.1:3210
+```
+
+选工作目录 → 补域名/URL/IP → 填 brief → 看覆盖、资产面、脱敏 OSINT、待复核候选 → 保存快照。服务只监听本机;分析不联网;"AI 设置"默认关闭,只有你明确开启并点"复核当前候选"才会发送有限候选证据(API Key 只在进程内存)。
+
+## 证据模型
+
+工程采用四层证据模型:**资产证据 → 静态关系 → 数据流候选 → 人工结论**。每层保留 `authority`、`epistemic state`、`confidence`、`coverage` 与 `limitations`。静态关系和数据流都是 `inferred`,不能单独证明运行时可达、权限缺失或漏洞可利用;后续接入 AST / Semgrep / 运行时证据时,不会把推断伪装成事实。
+
+- 去重:发现按**证据指纹**去重,保留来源与证据链(`file:line` + 片段 + 文件哈希)。
+- 快照:每次 `report` 生成新的不可变 run 目录,`diff` 按指纹分出新增 / 已修复 / 仍存在。
+- 输出:`scan` 输出 `VerdexScan/v2`;快照含 `analysis.json`、`findings.json`、脱敏 `osint.json`、`report.md`、`report.html`、`report.sarif`(SARIF 2.1.0,可上传 GitHub 代码扫描)。
+
+## 可选后端
+
+| 后端 | 用途 | 配置 |
+| --- | --- | --- |
+| binutils(`objdump`/`nm`/`strings`/`file`) | 逆向基础 | 放进 PATH(Windows 用 MSYS2/ucrt64) |
+| IDA Pro / Hex-Rays | `bin_decompile` 首选后端 | `VERDEX_IDA` → `idat.exe` / `idat64` |
+| Ghidra headless | `bin_decompile` 免费回退 | `VERDEX_GHIDRA` → `support/analyzeHeadless[.bat]`,需 JDK 21+ |
+| jadx | APK/DEX → Java | `VERDEX_JADX` → `bin/jadx[.bat]` |
+| ilspycmd + .NET runtime | .NET → C# | `VERDEX_ILSPY` → `ilspycmd.dll`;`VERDEX_DOTNET` 可选 |
+| WSL + squashfs-tools | 固件解包(Windows) | `VERDEX_WSL_DISTRO` 指定发行版 |
+
+`verdex doctor` 会逐项报告"找到没有、在哪、缺了影响哪些工具",不会运行目标、不会联网。
+
+## 不做什么(边界)
+
+- 不执行目标文件,不 attach 进程,不注入代码,不发 HTTP/DNS 请求。
+- 不生成专打未授权目标的载荷,不提供自动化攻击链执行。
+- 不做身份反查、账号关联、数据经纪查询;本地 OSINT 默认脱敏。
+- 不把推断说成事实:静态候选一律标 `inferred`,需回原文件核对。
+- 不受理"绕过授权闸 / 攻击未授权系统"的功能请求与 issue。
+
+## 开发与贡献
+
+```bash
+npm ci
+npm test            # node --test:MCP 协议、CLI、分析内核与各工具用例
+npm run doctor      # 环境自检
+```
+
+- 新工具约定、红线、提交规范见 **[CONTRIBUTING.md](CONTRIBUTING.md)**。
+- 变更记录见 **[CHANGELOG.md](CHANGELOG.md)**。
+- 安全问题请按 **[SECURITY.md](SECURITY.md)** 私下报告,不要开公开 issue。
+
+## 许可
+
+MIT © 2026 Yilanchia
