@@ -176,13 +176,13 @@ export const PROOF_TOOLS = [
   {
     name: "impact_proof",
     description:
-      "把'条件性理论风险'(硬编码密钥/签名盐/IDOR 候选等)升级成'审核可复核的已证影响'的验证方案(仅文本,Verdex 不发请求)。给一个 vuln_class(signing-forgery/idor/hardcoded-cred/ssrf/sqli/auth-bypass/open-redirect/xss/jwt),产出:为何单纯静态会被判理论风险、最小影响验证步骤、数据安全铁律(越权演示只用你自己的第二账号、带外只打自己canary、盲注只判存在不dump)、取证清单、怎么写报告才会被收录、以及点到为止的停止点。追 ARTEX 攻击链智力,但锁死数据安全+证到即停。",
+      "Turn a 'conditional theoretical risk' (hardcoded key / signing salt / IDOR candidate, etc.) into a verification plan for an impact that reviewers can re-check (text only: Verdex never sends the request and never executes anything). Given one vuln_class (signing-forgery/idor/hardcoded-cred/ssrf/sqli/auth-bypass/open-redirect/xss/jwt) it outputs: why static-only evidence gets rejected as theoretical, the minimal impact-verification steps, data-safety laws (IDOR demos only between your own two accounts, out-of-band only against your own canary, injection only proves existence and never dumps data), the evidence checklist, how to write the report so it gets accepted, and the stop-at-first-proof point. Declare your authorized target, review the plan, and run it only inside an authorized scope. | 中文:把'条件性理论风险'(硬编码密钥/签名盐/IDOR 候选等)升级成'审核可复核的已证影响'的验证方案(仅文本,Verdex 不发请求)。给一个 vuln_class(signing-forgery/idor/hardcoded-cred/ssrf/sqli/auth-bypass/open-redirect/xss/jwt),产出:为何单纯静态会被判理论风险、最小影响验证步骤、数据安全铁律(越权演示只用你自己的第二账号、带外只打自己canary、盲注只判存在不dump)、取证清单、怎么写报告才会被收录、以及点到为止的停止点。追 ARTEX 攻击链智力,但锁死数据安全+证到即停。",
     inputSchema: {
       type: "object",
       required: ["vuln_class"],
       properties: {
-        vuln_class: { type: "string", description: "漏洞类:signing-forgery/idor/hardcoded-cred/ssrf/sqli/auth-bypass/open-redirect/xss/jwt。" },
-        target: { type: "string", description: "可选:你声明授权的目标(写进方案上下文)。" },
+        vuln_class: { type: "string", description: "Vulnerability class: signing-forgery/idor/hardcoded-cred/ssrf/sqli/auth-bypass/open-redirect/xss/jwt. | 中文:漏洞类:signing-forgery/idor/hardcoded-cred/ssrf/sqli/auth-bypass/open-redirect/xss/jwt。" },
+        target: { type: "string", description: "Optional: the authorized target you declare (written into plan context). Text-only: you review the plan and run it only inside an authorized scope, against your own accounts/resources/canary. | 中文:可选:你声明授权的目标(写进方案上下文)。" },
       },
     },
     run: (args) => impactProof(args.vuln_class, { target: args.target }),

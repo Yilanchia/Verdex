@@ -154,15 +154,15 @@ export function fridaScript(options = {}) {
 export const FRIDA_TOOLS = [
   {
     name: "frida_script",
-    description: "生成 Frida 动态分析脚本(仅文本,Verdex 不 attach/不注入/不运行)。target 必填=授权目标声明(包名/进程)。kind:unpack(脱壳 dump 内存 dex)、hook(hook 指定 class.method 抓参数/返回,需 className+method)、crypto(抓运行时 key/IV/明文/算法)、network(抓 okhttp URL/headers 看签名拼接)。由你审阅后在自己授权的设备/App 上运行。禁止用于未授权目标。",
+    description: "Generate a Frida dynamic-analysis script (text only: Verdex never attaches, never injects, never runs anything). target is a required authorized-target declaration (package or process name). kind: unpack (dump the in-memory dex), hook (hook class.method to log arguments/returns; needs className+method), crypto (log runtime keys/IV/plaintext/algorithms), network (log okhttp URLs/headers to see signature construction). The user reviews the script and runs it on devices/apps they are authorized to test. Never use on unauthorized targets. | 中文:生成 Frida 动态分析脚本(仅文本,Verdex 不 attach/不注入/不运行)。target 必填=授权目标声明(包名/进程)。kind:unpack(脱壳 dump 内存 dex)、hook(hook 指定 class.method 抓参数/返回,需 className+method)、crypto(抓运行时 key/IV/明文/算法)、network(抓 okhttp URL/headers 看签名拼接)。由你审阅后在自己授权的设备/App 上运行。禁止用于未授权目标。",
     inputSchema: {
       type: "object",
       required: ["target"],
       properties: {
-        target: { type: "string", description: "授权目标:App 包名(com.example.app)或进程名。" },
-        kind: { type: "string", description: "unpack / hook / crypto / network(默认 unpack)。" },
-        className: { type: "string", description: "kind=hook 时:目标类全名。" },
-        method: { type: "string", description: "kind=hook 时:目标方法名。" },
+        target: { type: "string", description: "Authorized target: app package name (com.example.app) or process name. Required authorization declaration. | 中文:授权目标:App 包名(com.example.app)或进程名。" },
+        kind: { type: "string", description: "unpack / hook / crypto / network (default unpack). | 中文:unpack / hook / crypto / network(默认 unpack)。" },
+        className: { type: "string", description: "When kind=hook: fully qualified target class name. | 中文:kind=hook 时:目标类全名。" },
+        method: { type: "string", description: "When kind=hook: target method name. | 中文:kind=hook 时:目标方法名。" },
       },
     },
     run: (args) => fridaScript({ target: args.target, kind: args.kind, className: args.className, method: args.method }),

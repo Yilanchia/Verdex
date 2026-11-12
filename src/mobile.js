@@ -390,20 +390,20 @@ export async function dexDecompile(value, options = {}) {
 export const MOBILE_TOOLS = [
   {
     name: "dex_decompile",
-    description: "用 jadx 把 APK/DEX 反编译成 Java(只读,不运行 app):清点 package/class,可选 className 返回指定类的 Java 源码。需装 jadx(VERDEX_JADX 指向 bin/jadx)。安卓逆向 Java 层必备。仅限你拥有或被授权的 app。",
-    inputSchema: { type: "object", required: ["path"], properties: { path: { type: "string", description: "本地 APK 或 .dex 路径。" }, className: { type: "string", description: "可选:返回该类的 Java 源码(如 com.app.MainActivity)。" } } },
+    description: "Decompile an APK or DEX to Java with jadx (read-only, never runs the app): inventories packages/classes and optionally returns the Java source of one class. Requires jadx (VERDEX_JADX pointing at bin/jadx). For apps you own or are authorized to analyze. | 中文:用 jadx 把 APK/DEX 反编译成 Java(只读,不运行 app):清点 package/class,可选 className 返回指定类的 Java 源码。需装 jadx(VERDEX_JADX 指向 bin/jadx)。安卓逆向 Java 层必备。仅限你拥有或被授权的 app。",
+    inputSchema: { type: "object", required: ["path"], properties: { path: { type: "string", description: "Local APK or .dex file path. | 中文:本地 APK 或 .dex 路径。" }, className: { type: "string", description: "Optional: return the Java source of this class (e.g. com.app.MainActivity). | 中文:可选:返回该类的 Java 源码(如 com.app.MainActivity)。" } } },
     run: (args) => dexDecompile(args.path, { className: args.className }),
   },
   {
     name: "wxapkg_unpack",
-    description: "解包微信小程序 .wxapkg 包(自定义二进制格式,纯解析):提取并清点 js/wxml/wxss/json,JS 可路由到 scan 分析逻辑。防路径穿越,只读不执行。仅限你拥有或被授权的小程序。",
-    inputSchema: { type: "object", required: ["path"], properties: { path: { type: "string", description: "本地 .wxapkg 文件路径。" } } },
+    description: "Unpack a WeChat mini-program .wxapkg container (custom binary format, pure parsing): extracts and inventories js/wxml/wxss/json, with JS routed to scan for logic analysis. Guards against path traversal; read-only, never executes mini-program code. For mini-programs you own or are authorized to analyze. | 中文:解包微信小程序 .wxapkg 包(自定义二进制格式,纯解析):提取并清点 js/wxml/wxss/json,JS 可路由到 scan 分析逻辑。防路径穿越,只读不执行。仅限你拥有或被授权的小程序。",
+    inputSchema: { type: "object", required: ["path"], properties: { path: { type: "string", description: "Local .wxapkg file path. | 中文:本地 .wxapkg 文件路径。" } } },
     run: (args) => unpackWxapkg(args.path),
   },
   {
     name: "mobile_unpack",
-    description: "解包移动安装包(APK/IPA/AAB/JAR,ZIP 容器)并清点内容:原生库(.so/.dylib/Mach-O→可直接 bin_decompile)、DEX、JS、小程序包、manifest。原生库会被抽出到可用路径。只读解包,不执行包内代码。仅限你拥有或被授权的 app。",
-    inputSchema: { type: "object", required: ["path"], properties: { path: { type: "string", description: "本地 APK/IPA/AAB/JAR 路径。" } } },
+    description: "Unpack a mobile package (APK/IPA/AAB/JAR, a ZIP container) and inventory its contents: native libraries (.so/.dylib/Mach-O, copied out so they can feed bin_decompile), DEX, JS, mini-program bundles and manifests. Read-only: extracts only, never executes code inside the package. For apps you own or are authorized to analyze. | 中文:解包移动安装包(APK/IPA/AAB/JAR,ZIP 容器)并清点内容:原生库(.so/.dylib/Mach-O→可直接 bin_decompile)、DEX、JS、小程序包、manifest。原生库会被抽出到可用路径。只读解包,不执行包内代码。仅限你拥有或被授权的 app。",
+    inputSchema: { type: "object", required: ["path"], properties: { path: { type: "string", description: "Local APK/IPA/AAB/JAR file path. | 中文:本地 APK/IPA/AAB/JAR 路径。" } } },
     run: (args) => unpackMobile(args.path),
   },
 ];

@@ -115,8 +115,8 @@ export function deobfuscateJs(value) {
 export const JSDEOBF_TOOLS = [
   {
     name: "js_deobfuscate",
-    description: "JS 反混淆辅助(纯静态,绝不执行):解 \\xHH/\\uHHHH 转义揪出藏的 URL/字符串、美化压缩代码、识别混淆特征(_0x 标识符/packer/eval/atob/字符串数组)、提取 URL/IP/base64。字符串数组等运行时解码需执行才现形,本工具不做。只读本地。",
-    inputSchema: { type: "object", required: ["path"], properties: { path: { type: "string", description: "本地 JS 文件路径。" } } },
+    description: "Static JS de-obfuscation aid (never evaluates the script): decodes \\xHH/\\uHHHH escapes to surface hidden URLs/strings, beautifies minified code, fingerprints obfuscation (hex identifiers/packer/eval/atob/string arrays) and extracts URLs/IPs/base64. Runtime decoding such as string arrays or atob needs execution to reveal real values, which this tool never does. Read-only and local. | 中文:JS 反混淆辅助(纯静态,绝不执行):解 \\xHH/\\uHHHH 转义揪出藏的 URL/字符串、美化压缩代码、识别混淆特征(_0x 标识符/packer/eval/atob/字符串数组)、提取 URL/IP/base64。字符串数组等运行时解码需执行才现形,本工具不做。只读本地。",
+    inputSchema: { type: "object", required: ["path"], properties: { path: { type: "string", description: "Local JS file path. | 中文:本地 JS 文件路径。" } } },
     run: ({ path: p }) => deobfuscateJs(p),
   },
 ];

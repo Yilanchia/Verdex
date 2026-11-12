@@ -257,14 +257,14 @@ export async function fwExtract(value) {
 export const FIRMWARE_TOOLS = [
   {
     name: "fw_extract",
-    description: "解包固件文件系统镜像(SquashFS/JFFS2/UBIFS;Windows 经 WSL,Linux 原生;调 unsquashfs/jefferson/ubireader)并清点 rootfs:原生 ELF(抽出可喂 bin_decompile)、配置、脚本、凭据文件。只读不执行固件。需 WSL 里装 squashfs-tools/jefferson/ubi_reader。仅限你拥有或被授权的设备固件。",
-    inputSchema: { type: "object", required: ["path"], properties: { path: { type: "string", description: "本地 SquashFS 镜像路径。" } } },
+    description: "Extract a firmware filesystem image (SquashFS/JFFS2/UBIFS; via WSL on Windows, natively on Linux; calls unsquashfs/jefferson/ubireader) and inventory the rootfs: native ELF (copied out for bin_decompile), configs, scripts and credential files. Read-only: extracts only, never executes firmware content. Requires squashfs-tools/jefferson/ubi_reader inside WSL. For firmware you own or are authorized to analyze. | 中文:解包固件文件系统镜像(SquashFS/JFFS2/UBIFS;Windows 经 WSL,Linux 原生;调 unsquashfs/jefferson/ubireader)并清点 rootfs:原生 ELF(抽出可喂 bin_decompile)、配置、脚本、凭据文件。只读不执行固件。需 WSL 里装 squashfs-tools/jefferson/ubi_reader。仅限你拥有或被授权的设备固件。",
+    inputSchema: { type: "object", required: ["path"], properties: { path: { type: "string", description: "Local SquashFS image path. | 中文:本地 SquashFS 镜像路径。" } } },
     run: (args) => fwExtract(args.path),
   },
   {
     name: "fw_scan",
-    description: "固件镜像分流(mini-binwalk,纯静态):扫描内嵌文件系统(SquashFS/CramFS/JFFS2/UBI)、压缩块(gzip/xz/lzma/bzip2)、引导头(U-Boot/TRX/DTB/Android boot)、ELF、PEM 的特征与偏移,并给熵分布图标出加密/压缩区段;每个命中附建议解包工具。只读,不解包不执行。仅限你拥有或被授权的设备固件。",
-    inputSchema: { type: "object", required: ["path"], properties: { path: { type: "string", description: "本地固件镜像路径(.bin/.img/.trx 等)。" }, window: { type: "integer", description: "熵分析滑窗字节数(默认 4096)。" } } },
+    description: "Firmware triage (mini-binwalk, pure static): scans an image for embedded filesystems (SquashFS/CramFS/JFFS2/UBI), compressed streams (gzip/xz/lzma/bzip2), boot headers (U-Boot/TRX/DTB/Android boot), ELF and PEM signatures with their offsets, and maps entropy to flag encrypted/compressed regions; each hit names a suggested extraction tool. Read-only: extracts nothing, executes nothing. For firmware you own or are authorized to analyze. | 中文:固件镜像分流(mini-binwalk,纯静态):扫描内嵌文件系统(SquashFS/CramFS/JFFS2/UBI)、压缩块(gzip/xz/lzma/bzip2)、引导头(U-Boot/TRX/DTB/Android boot)、ELF、PEM 的特征与偏移,并给熵分布图标出加密/压缩区段;每个命中附建议解包工具。只读,不解包不执行。仅限你拥有或被授权的设备固件。",
+    inputSchema: { type: "object", required: ["path"], properties: { path: { type: "string", description: "Local firmware image path (.bin/.img/.trx etc.). | 中文:本地固件镜像路径(.bin/.img/.trx 等)。" }, window: { type: "integer", description: "Entropy-analysis sliding-window size in bytes (default 4096). | 中文:熵分析滑窗字节数(默认 4096)。" } } },
     run: (args) => scanFirmware(args.path, { window: args.window }),
   },
 ];

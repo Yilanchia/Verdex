@@ -238,20 +238,20 @@ export function webRecon(domain, options = {}) {
 export const WEB_TOOLS = [
   {
     name: "web_recon",
-    description: "为授权域名(公益 SRC / 书面 scope)生成分阶段 web 侦察剧本(仅文本,Verdex 不发请求):被动(子域/CT/Wayback,不碰目标)→轻主动(httpx 探活指纹)→主动(ffuf/nuclei,标注需确认 scope+限速)。domain 必填=授权声明。命令由你在授权范围内自行执行。只给主域不等于授权所有子域。",
-    inputSchema: { type: "object", required: ["domain"], properties: { domain: { type: "string", description: "授权目标域名(如 example.com)。" }, scope: { type: "string", description: "可选:项目声明的 scope 说明(如 '*.example.com,排除 pay.example.com')。" } } },
+    description: "Generate a staged web-recon playbook for an authorized domain (public SRC / written scope): passive first (subdomains/CT logs/Wayback, no packets to the target), then light-active (httpx liveness and fingerprint), then active (ffuf/nuclei with scope checks and rate limits). Text-only: Verdex sends no requests; domain is a required authorization declaration. The user runs the commands inside an authorized scope, and a main-domain grant does not cover every subdomain. | 中文:为授权域名(公益 SRC / 书面 scope)生成分阶段 web 侦察剧本(仅文本,Verdex 不发请求):被动(子域/CT/Wayback,不碰目标)→轻主动(httpx 探活指纹)→主动(ffuf/nuclei,标注需确认 scope+限速)。domain 必填=授权声明。命令由你在授权范围内自行执行。只给主域不等于授权所有子域。",
+    inputSchema: { type: "object", required: ["domain"], properties: { domain: { type: "string", description: "Authorized target domain (e.g. example.com). Required authorization declaration. | 中文:授权目标域名(如 example.com)。" }, scope: { type: "string", description: "Optional: the project scope statement (e.g. '*.example.com, exclude pay.example.com'). | 中文:可选:项目声明的 scope 说明(如 '*.example.com,排除 pay.example.com')。" } } },
     run: (args) => webRecon(args.domain, { scope: args.scope }),
   },
   {
     name: "har_analyze",
-    description: "静态分析你抓的 HAR 流量文件(Burp/浏览器 DevTools 导出):标出缺失安全头、不安全 Cookie、CORS 任意源、反射参数(XSS 候选)、URL 泄露令牌、明文传输。只读文件,不发起任何请求。",
-    inputSchema: { type: "object", required: ["path"], properties: { path: { type: "string", description: "本地 HAR 文件路径。" } } },
+    description: "Statically analyze a HAR traffic capture you already took (Burp/browser DevTools export): flag missing security headers, insecure cookies, wildcard CORS, reflected parameters (XSS candidates), tokens leaked in URLs, and cleartext HTTP. Reads only the local file and sends no requests of any kind. | 中文:静态分析你抓的 HAR 流量文件(Burp/浏览器 DevTools 导出):标出缺失安全头、不安全 Cookie、CORS 任意源、反射参数(XSS 候选)、URL 泄露令牌、明文传输。只读文件,不发起任何请求。",
+    inputSchema: { type: "object", required: ["path"], properties: { path: { type: "string", description: "Local HAR file path. | 中文:本地 HAR 文件路径。" } } },
     run: (args) => analyzeHar(args.path),
   },
   {
     name: "web_poc",
-    description: "生成 web 漏洞验证请求模板(curl + python,仅文本)。url 必填=显式声明授权目标,写进授权 banner。kind:sqli/xss/ssrf/path/redirect。Verdex 不代为发送,由使用者在授权范围自行运行。禁止用于未授权系统。",
-    inputSchema: { type: "object", required: ["url"], properties: { url: { type: "string", description: "授权目标 URL(http/https)。" }, kind: { type: "string", description: "检测类型:sqli/xss/ssrf/path/redirect(默认 xss)。" } } },
+    description: "Generate a web vulnerability verification request template (curl + python, text only). url is a required authorized-target declaration and is written into the authorization banner. kind: sqli/xss/ssrf/path/redirect. Verdex never sends the request; the user reviews the template and runs it inside an authorized scope. Never use on unauthorized systems. | 中文:生成 web 漏洞验证请求模板(curl + python,仅文本)。url 必填=显式声明授权目标,写进授权 banner。kind:sqli/xss/ssrf/path/redirect。Verdex 不代为发送,由使用者在授权范围自行运行。禁止用于未授权系统。",
+    inputSchema: { type: "object", required: ["url"], properties: { url: { type: "string", description: "Authorized target URL (http/https). Required authorization declaration. | 中文:授权目标 URL(http/https)。" }, kind: { type: "string", description: "Detection kind: sqli/xss/ssrf/path/redirect (default xss). | 中文:检测类型:sqli/xss/ssrf/path/redirect(默认 xss)。" } } },
     run: (args) => webPoc(args.url, { kind: args.kind }),
   },
 ];

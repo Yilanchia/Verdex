@@ -102,8 +102,8 @@ export function unpackAsar(value) {
 export const ELECTRON_TOOLS = [
   {
     name: "asar_unpack",
-    description: "解包 Electron .asar 归档(纯 Node,防路径穿越,只读不执行):提取并清点 js/json/html/css/.node,js 可路由 js_deobfuscate,.node 原生插件可 bin_decompile。桌面 Electron 应用逆向入口。仅限你拥有或被授权的应用。",
-    inputSchema: { type: "object", required: ["path"], properties: { path: { type: "string", description: "本地 .asar 文件路径(通常 resources/app.asar)。" } } },
+    description: "Unpack an Electron .asar archive (pure Node, path-traversal guarded, read-only, executes nothing): extracts and inventories js/json/html/css/.node files, routing JS to js_deobfuscate and .node native addons to bin_decompile. Entry point for reversing desktop Electron apps. For apps you own or are authorized to analyze. | 中文:解包 Electron .asar 归档(纯 Node,防路径穿越,只读不执行):提取并清点 js/json/html/css/.node,js 可路由 js_deobfuscate,.node 原生插件可 bin_decompile。桌面 Electron 应用逆向入口。仅限你拥有或被授权的应用。",
+    inputSchema: { type: "object", required: ["path"], properties: { path: { type: "string", description: "Local .asar file path (usually resources/app.asar). | 中文:本地 .asar 文件路径(通常 resources/app.asar)。" } } },
     run: (args) => unpackAsar(args.path),
   },
 ];

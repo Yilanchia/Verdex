@@ -111,8 +111,8 @@ export function scanSecrets(value, options = {}) {
 export const SECRETS_TOOLS = [
   {
     name: "secrets",
-    description: "扫描硬编码密钥:按服务商特征(AWS/GitHub/Google/Slack/Stripe/私钥/JWT 等)+ 高熵启发式识别,默认脱敏(只给前后几位+sha256+文件行号,不输出原文)。只读本地,不联网、不验证凭据。",
-    inputSchema: { type: "object", required: ["root"], properties: { root: { type: "string", description: "本地作业夹路径。" } } },
+    description: "Scan for hardcoded secrets by provider signature (AWS/GitHub/Google/Slack/Stripe/private keys/JWT and more) plus high-entropy heuristics and named key/signing-salt constants; values are redacted by default (first/last chars + sha256 + file/line only, never plaintext). Read-only and local: no network, never validates credentials. | 中文:扫描硬编码密钥:按服务商特征(AWS/GitHub/Google/Slack/Stripe/私钥/JWT 等)+ 命名密钥常量/签名盐 + 高熵启发式识别,默认脱敏(只给前后几位+sha256+文件行号,不输出原文)。只读本地,不联网、不验证凭据。",
+    inputSchema: { type: "object", required: ["root"], properties: { root: { type: "string", description: "Local workspace directory path. | 中文:本地作业夹路径。" } } },
     run: ({ root }) => scanSecrets(root),
   },
 ];

@@ -116,8 +116,8 @@ export function analyzeTarget(value) {
 export const ORCHESTRATE_TOOLS = [
   {
     name: "analyze_target",
-    description: "一站式入口:识别目标类型(目录/ELF/PE/Mach-O/APK/IPA/小程序/DEX/固件 SquashFS·JFFS2·UBI/JS/HAR),返回推荐的 Verdex 工具链(有序+理由)。丢个路径就知道该怎么分析。只做识别与路由,不执行重分析。",
-    inputSchema: { type: "object", required: ["path"], properties: { path: { type: "string", description: "本地目标路径(目录或文件)。" } } },
+    description: "Single entry point: detect the target type (directory, ELF, PE, Mach-O, APK, IPA, WeChat mini-program, DEX, SquashFS/JFFS2/UBI firmware, JS, HAR) and return the recommended Verdex tool chain in order with a reason per step. Identification and routing only: it runs no analysis itself, never executes the target and makes no network requests; a domain target yields a recon playbook whose commands you run yourself. | 中文:一站式入口:识别目标类型(目录/ELF/PE/Mach-O/APK/IPA/小程序/DEX/固件 SquashFS·JFFS2·UBI/JS/HAR),返回推荐的 Verdex 工具链(有序+理由)。丢个路径就知道该怎么分析。只做识别与路由,不执行重分析。",
+    inputSchema: { type: "object", required: ["path"], properties: { path: { type: "string", description: "Local target path (a directory or a file); an authorized domain is also accepted. | 中文:本地目标路径(目录或文件);也可传授权域名。" } } },
     run: (args) => analyzeTarget(args.path),
   },
 ];

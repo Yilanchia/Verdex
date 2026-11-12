@@ -94,8 +94,8 @@ export async function dotnetDecompile(value, options = {}) {
 export const DOTNET_TOOLS = [
   {
     name: "dotnet_decompile",
-    description: ".NET/CLR 程序集(.dll/.exe)反编译成 C#(ILSpy/ilspycmd 后端,只读不执行)。可选 typeName 聚焦某类型(如 System.Guid),不传则全量(截断)。需装 ilspycmd(VERDEX_ILSPY 指向 ilspycmd.dll)+ 对应 .NET runtime。处理 C#/VB/F# 编译出的托管程序集。",
-    inputSchema: { type: "object", required: ["path"], properties: { path: { type: "string", description: "本地 .NET 程序集路径(.dll/.exe)。" }, typeName: { type: "string", description: "可选:只反编译该类型(含命名空间,如 Namespace.ClassName)。" } } },
+    description: "Decompile a .NET/CLR assembly (.dll/.exe) to C# via ILSpy/ilspycmd (read-only: parses the file, never executes it). Optional typeName narrows output to one type (e.g. System.Guid); otherwise the whole assembly is decompiled (truncated). Requires ilspycmd (VERDEX_ILSPY pointing at ilspycmd.dll) plus a matching .NET runtime. Handles managed assemblies built from C#/VB/F#. | 中文:.NET/CLR 程序集(.dll/.exe)反编译成 C#(ILSpy/ilspycmd 后端,只读不执行)。可选 typeName 聚焦某类型(如 System.Guid),不传则全量(截断)。需装 ilspycmd(VERDEX_ILSPY 指向 ilspycmd.dll)+ 对应 .NET runtime。处理 C#/VB/F# 编译出的托管程序集。",
+    inputSchema: { type: "object", required: ["path"], properties: { path: { type: "string", description: "Local .NET assembly path (.dll/.exe). | 中文:本地 .NET 程序集路径(.dll/.exe)。" }, typeName: { type: "string", description: "Optional: decompile only this type (namespace-qualified, e.g. Namespace.ClassName). | 中文:可选:只反编译该类型(含命名空间,如 Namespace.ClassName)。" } } },
     run: (args) => dotnetDecompile(args.path, { typeName: args.typeName }),
   },
 ];
