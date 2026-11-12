@@ -28,6 +28,17 @@ if (command === "mcp") {
   const report = await doctor();
   if (argv.includes("--json")) process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
   else process.stdout.write(formatDoctor(report));
+} else if (command === "explain") {
+  const { explain } = await import("./explain.js");
+  const query = argv[1];
+  if (!query) {
+    process.stderr.write("用法 / Usage: verdex explain <rule|kind|cwe> [--en] [--json]\n");
+    process.exitCode = 1;
+  } else {
+    const result = explain(query, { lang: argv.includes("--en") ? "en" : "zh" });
+    if (argv.includes("--json")) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    else process.stdout.write(formatExplain(result));
+  }
 } else {
   await runOnce();
 }
@@ -68,6 +79,7 @@ Commands / 命令:
   map <dir>                      Code graph: files, functions, routes, calls
   osint <dir> [brief.json]       Local OSINT, redacted by default
   report <dir> [out] [brief]     Immutable run snapshot (JSON / MD / HTML / SARIF)
+  explain <rule|cwe> [--en]      Plain-language explanation of a finding class
   doctor [--json]                Check Node + optional backends (IDA/Ghidra/jadx/...)
   mcp                            Start the MCP server over stdio
   help | --help                  Show this help
@@ -79,6 +91,27 @@ authorized-target declaration; you run every command yourself, in scope.
 全部只读:不执行目标、不发网络请求;利用/验证脚手架只产出文本,必须声明授权目标,
 由你在授权范围内亲自运行。
 `);
+}
+
+function formatExplain(result) {
+  if (!result.matched) {
+    return `未找到规则解释 / No explanation for "${result.query}".\n支持的 id / Supported ids: ${result.supported.join(", ")}\n`;
+  }
+  const zh = result.lang === "zh";
+  const cwe = result.technical.cwe ? ` · ${result.technical.cwe}` : "";
+  const lines = [
+    `${result.title}${cwe} · ${result.rule_id}`,
+    "",
+    zh ? `  这是什么   ${result.plain.what}` : `  What it is     ${result.plain.what}`,
+    zh ? `  为什么要紧 ${result.plain.why}` : `  Why it matters ${result.plain.why}`,
+    zh ? `  该怎么办   ${result.plain.fix}` : `  What to do     ${result.plain.fix}`,
+    "",
+    zh ? "技术细节 / 怎么复核:" : "Technical detail / how to verify:",
+    ...result.technical.signals.map((signal) => `  - ${signal}`),
+  ];
+  if (result.technical.references.length) lines.push("", `${zh ? "参考" : "References"}: ${result.technical.references.join(" ")}`);
+  lines.push("", zh ? "解释针对规则类,不判定具体某条发现的利用性;静态命中仍需人工复核。" : "Explanations describe a rule class, not exploitability of a specific finding; static hits still need human review.");
+  return `${lines.join("\n")}\n`;
 }
 
 function formatDoctor(report) {

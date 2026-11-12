@@ -19,6 +19,7 @@ import { FRIDA_TOOLS } from "./frida.js";
 import { DOTNET_TOOLS } from "./dotnet.js";
 import { ELECTRON_TOOLS } from "./electron.js";
 import { PROOF_TOOLS } from "./proof.js";
+import { EXPLAIN_TOOLS } from "./explain.js";
 import { packageInfo } from "./package-info.js";
 
 const PROTOCOL_VERSION = "2024-11-05";
@@ -32,7 +33,7 @@ const SERVER_INSTRUCTIONS =
 const ROOT_SCHEMA = {
   type: "object",
   required: ["root"],
-  properties: { root: { type: "string", description: "本地作业夹绝对路径；只读分析，不访问网络。" } },
+  properties: { root: { type: "string", description: "Absolute path to the workspace; read-only, no network access. | 中文:本地作业夹绝对路径；只读分析，不访问网络。" } },
 };
 
 // All tools are read-only static analysis. They never attack live targets,
@@ -40,52 +41,52 @@ const ROOT_SCHEMA = {
 const TOOLS = [
   {
     name: "assets",
-    description: "列出目标本地代码中的资产（域名/URL/IP 等）及文件行号证据。只读静态分析，不验证存活。",
+    description: "List local assets (domains/URLs/IPs) with file:line evidence. Static only: no network access, no liveness checks, never executes the target. | 中文:列出目标本地代码中的资产（域名/URL/IP 等）及文件行号证据。只读静态分析，不验证存活。",
     inputSchema: ROOT_SCHEMA,
     run: ({ root }) => extractAssets(resolveRoot(root)),
   },
   {
     name: "map",
-    description: "生成代码图：文件、函数、路由、导入、调用关系与数据流候选（静态推断）。只读，不执行代码。",
+    description: "Build a code graph: files, functions, routes, imports, call relations and data-flow candidates (static inference). Read-only: never executes code, no network access. | 中文:生成代码图：文件、函数、路由、导入、调用关系与数据流候选（静态推断）。只读，不执行代码。",
     inputSchema: ROOT_SCHEMA,
     run: ({ root }) => buildCodeGraph(resolveRoot(root), { includeFlows: true }),
   },
   {
     name: "scan",
-    description: "完整静态分析：资产、代码图、规则命中、source→sink 数据流候选、被动结果观察。候选均为待人工复核的静态推断，非已验证漏洞；不生成载荷或攻击步骤。",
+    description: "Full static analysis: assets, code graph, rule hits, source-to-sink data-flow candidates and passive result observations. Every item is a static inference for human review, not a confirmed vulnerability; no payloads or attack steps are produced. Read-only: no network access, never executes the target. | 中文:完整静态分析：资产、代码图、规则命中、source→sink 数据流候选、被动结果观察。候选均为待人工复核的静态推断，非已验证漏洞；不生成载荷或攻击步骤。",
     inputSchema: {
       type: "object",
       required: ["root"],
       properties: {
         root: ROOT_SCHEMA.properties.root,
-        brief: { type: "object", description: "可选 VerdexBrief/v1：限定范围、漏洞类型、最低置信度；强制 no-payload/no-bruteforce/no-out-of-scope 红线。" },
+        brief: { type: "object", description: "Optional VerdexBrief/v1: scope, vulnerability classes and minimum confidence; enforces the no-payload/no-bruteforce/no-out-of-scope red lines. | 中文:可选 VerdexBrief/v1：限定范围、漏洞类型、最低置信度；强制 no-payload/no-bruteforce/no-out-of-scope 红线。" },
       },
     },
     run: ({ root, brief }) => analyzeProject(resolveRoot(root), brief ? { brief: validateBrief(brief) } : {}),
   },
   {
     name: "osint",
-    description: "本地 OSINT：从作业夹文件中提取标注过的邮箱/电话/社交资料/姓名/用户名，默认脱敏，保留文件证据。不访问网络、不做身份反查或账号关联。",
+    description: "Local OSINT: extract annotated emails, phones, social profiles, names and usernames from workspace files, masked by default, keeping file evidence. No network access, no identity reverse lookup or account correlation. | 中文:本地 OSINT：从作业夹文件中提取标注过的邮箱/电话/社交资料/姓名/用户名，默认脱敏，保留文件证据。不访问网络、不做身份反查或账号关联。",
     inputSchema: {
       type: "object",
       required: ["root"],
       properties: {
         root: ROOT_SCHEMA.properties.root,
-        categories: { type: "array", items: { type: "string" }, description: "可选类别过滤：email/phone/social-profile/person-name/username。" },
-        reveal: { type: "boolean", description: "是否显示明文值；默认 false（脱敏）。" },
+        categories: { type: "array", items: { type: "string" }, description: "Optional category filter: email/phone/social-profile/person-name/username. | 中文:可选类别过滤：email/phone/social-profile/person-name/username。" },
+        reveal: { type: "boolean", description: "Reveal plaintext values; defaults to false (masked). | 中文:是否显示明文值；默认 false（脱敏）。" },
       },
     },
     run: ({ root, categories, reveal }) => collectOsint(resolveRoot(root), { categories, reveal: reveal === true }),
   },
   {
     name: "report",
-    description: "对目标跑完整分析并在 .verdex/runs 下保存一份不可变快照:analysis.json、findings.json、脱敏 osint.json、Markdown 报告(含执行摘要)和自包含 HTML 报告(严重度看板+证据链)。返回各文件路径,HTML 可直接打开/分享。只读分析,不访问网络。",
+    description: "Run the full analysis on the target and save an immutable snapshot under .verdex/runs: analysis.json, findings.json, a masked osint.json, a Markdown report with an executive summary, and a self-contained HTML report (severity dashboard + evidence chain). Both reports include a plain-language section for non-technical readers. Returns every file path; the HTML opens and shares directly. Read-only analysis, no network access. | 中文:对目标跑完整分析并在 .verdex/runs 下保存一份不可变快照:analysis.json、findings.json、脱敏 osint.json、Markdown 报告(含执行摘要)和自包含 HTML 报告(严重度看板+证据链)。Markdown 与 HTML 都带一段「给非技术读者」的大白话摘要。返回各文件路径,HTML 可直接打开/分享。只读分析,不访问网络。",
     inputSchema: {
       type: "object",
       required: ["root"],
       properties: {
         root: ROOT_SCHEMA.properties.root,
-        brief: { type: "object", description: "可选 VerdexBrief/v1:限定范围、漏洞类型、最低置信度;强制红线。" },
+        brief: { type: "object", description: "Optional VerdexBrief/v1: scope, vulnerability classes and minimum confidence; enforces the red lines. | 中文:可选 VerdexBrief/v1:限定范围、漏洞类型、最低置信度;强制红线。" },
       },
     },
     run: ({ root, brief }) => {
@@ -97,20 +98,20 @@ const TOOLS = [
   },
   {
     name: "diff",
-    description: "对比两次扫描快照(.verdex/runs 下的 run 目录),按证据指纹分出新增/已修复/仍存在的候选,带严重度统计。追踪'改了什么、修了什么、还剩什么'。只读。",
+    description: "Compare two scan snapshots (run directories under .verdex/runs) and classify candidates by evidence fingerprint into added, fixed and still-present, with severity counts. Tracks what changed, what was fixed and what remains. Read-only: no network access, never executes the target. | 中文:对比两次扫描快照(.verdex/runs 下的 run 目录),按证据指纹分出新增/已修复/仍存在的候选,带严重度统计。追踪'改了什么、修了什么、还剩什么'。只读。",
     inputSchema: {
       type: "object",
       required: ["base", "head"],
       properties: {
-        base: { type: "string", description: "基线 run 目录路径(较早的快照)。" },
-        head: { type: "string", description: "对比 run 目录路径(较新的快照)。" },
+        base: { type: "string", description: "Path to the baseline run directory (the earlier snapshot). | 中文:基线 run 目录路径(较早的快照)。" },
+        head: { type: "string", description: "Path to the comparison run directory (the newer snapshot). | 中文:对比 run 目录路径(较新的快照)。" },
       },
     },
     run: ({ base, head }) => diffRuns(base, head),
   },
 ];
 
-const ALL_TOOLS = [...TOOLS, ...REVERSE_TOOLS, ...PWN_TOOLS, ...WEB_TOOLS, ...MOBILE_TOOLS, ...SECRETS_TOOLS, ...FIRMWARE_TOOLS, ...JSDEOBF_TOOLS, ...ORCHESTRATE_TOOLS, ...FRIDA_TOOLS, ...DOTNET_TOOLS, ...ELECTRON_TOOLS, ...PROOF_TOOLS];
+const ALL_TOOLS = [...TOOLS, ...REVERSE_TOOLS, ...PWN_TOOLS, ...WEB_TOOLS, ...MOBILE_TOOLS, ...SECRETS_TOOLS, ...FIRMWARE_TOOLS, ...JSDEOBF_TOOLS, ...ORCHESTRATE_TOOLS, ...FRIDA_TOOLS, ...DOTNET_TOOLS, ...ELECTRON_TOOLS, ...PROOF_TOOLS, ...EXPLAIN_TOOLS];
 
 // Optional lean tool surface for offline CTF pwn/re sessions. Setting
 // VERDEX_PROFILE=pwn only trims what tools/list advertises to the model

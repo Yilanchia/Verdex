@@ -282,7 +282,7 @@ test("MCP server lists read-only tools and enforces brief redlines over stdio pr
 
   const list = await dispatch({ jsonrpc: "2.0", id: 2, method: "tools/list" });
   const names = list.result.tools.map((tool) => tool.name);
-  for (const expected of ["assets", "map", "osint", "scan", "report", "bin_info", "bin_symbols", "bin_strings", "bin_disasm", "bin_decompile", "reconstruct", "diff", "pwn_checksec", "pwn_gadgets", "pwn_template", "pwn_cyclic", "pwn_gdbscript", "pwn_libc", "har_analyze", "web_poc", "mobile_unpack", "wxapkg_unpack", "dex_decompile", "secrets", "fw_scan", "fw_extract", "js_deobfuscate", "analyze_target", "frida_script", "dotnet_decompile", "asar_unpack", "web_recon"]) {
+  for (const expected of ["assets", "map", "osint", "scan", "report", "bin_info", "bin_symbols", "bin_strings", "bin_disasm", "bin_decompile", "reconstruct", "diff", "pwn_checksec", "pwn_gadgets", "pwn_template", "pwn_cyclic", "pwn_gdbscript", "pwn_libc", "har_analyze", "web_poc", "mobile_unpack", "wxapkg_unpack", "dex_decompile", "secrets", "fw_scan", "fw_extract", "js_deobfuscate", "analyze_target", "frida_script", "dotnet_decompile", "asar_unpack", "web_recon", "explain"]) {
     assert.ok(names.includes(expected), `missing tool ${expected}`);
   }
 

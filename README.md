@@ -14,7 +14,7 @@
 
 ## 这是什么
 
-- **一个 MCP server**:`verdex-mcp` 通过 stdio + JSON-RPC 2.0 暴露 34 个只读工具,DeepSeek Harness / Claude Code / Claude Desktop / Cursor / Cline / Codex 等任何 MCP 宿主都能直接驱动。
+- **一个 MCP server**:`verdex-mcp` 通过 stdio + JSON-RPC 2.0 暴露 35 个只读工具,DeepSeek Harness / Claude Code / Claude Desktop / Cursor / Cline / Codex 等任何 MCP 宿主都能直接驱动。
 - **一套分析内核**:AST 代码图、规则命中、source→sink 数据流、证据指纹去重、brief 范围与红线、不可变 run 快照(JSON + Markdown + 自包含 HTML + SARIF)。
 - **一个本地工作台**:`npm start` 打开 `http://127.0.0.1:3210`,选目录、补资产、看候选、保存快照。只监听本机,分析接口不联网。
 
@@ -137,14 +137,14 @@ Verdex 的立身之本是**只读、只产文本、不自主攻击**。这条线
 - 所有发现都是**待人工复核的静态推断**,不是"已验证漏洞";报告里明确标注 epistemic state 与 limitations。
 - `report` 的 HTML 自包含、可离线打开;`.verdex/runs` 是不可变快照,便于复盘与对比(`diff`)。
 
-## 工具一览(34)
+## 工具一览(35)
 
 完整清单、输入参数、后端依赖见 **[docs/tools.md](docs/tools.md)**。
 
 | 分类 | 工具 | 你需要什么 |
 | --- | --- | --- |
 | 源码 / 项目 | `assets` `map` `scan` `osint` `report` `diff` `secrets` | 无(纯 Node) |
-| 编排 | `analyze_target` | 无 |
+| 编排 / 解释 | `analyze_target` `explain` | 无 |
 | 二进制逆向 | `bin_info` `bin_symbols` `bin_strings` `bin_disasm` `bin_dossier` `bin_decompile` `reconstruct` | binutils;反编译需 IDA 或 Ghidra |
 | pwn 辅助(仅授权靶场) | `pwn_checksec` `pwn_gadgets` `pwn_template` `pwn_cyclic` `pwn_gdbscript` `pwn_libc` | binutils;生成文本,不连接/不执行 |
 | Web 攻防辅助 | `web_recon` `har_analyze` `web_poc` | 你抓的 HAR;生成剧本/请求模板 |

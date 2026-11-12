@@ -19,6 +19,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Package/CLI/MCP-over-stdio smoke tests (Node test runner).
 - `initialize` now returns server `instructions` describing the safety model and
   the recommended first call (`analyze_target`).
+- `explain` tool: turns a scanner kind / secrets rule id / CWE / impact-proof
+  class into a plain-language triad (what it is, why it matters, what to do) plus
+  CWE, verification signals and references, bilingual (zh/en). Reports
+  (`report.md`, `report.html`) now open with a "给非技术读者" section for
+  high/critical findings.
 - `README.en.md`, `docs/tools.md` (full tool reference), issue templates, and
   PR template.
 

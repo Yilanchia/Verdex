@@ -100,14 +100,14 @@ npm start      # http://127.0.0.1:3210
 
 Pick a workspace, add domains/URLs/IPs, fill a brief, review coverage/assets/redacted OSINT/candidates, save a snapshot. Local-only listener; analysis makes no network requests; the optional AI review is off by default and secrets stay in process memory.
 
-## Tools (34)
+## Tools (35)
 
 Full inputs, backends and gates: **[docs/tools.md](docs/tools.md)**.
 
 | Group | Tools | Backend |
 | --- | --- | --- |
 | Source / project | `assets` `map` `scan` `osint` `report` `diff` `secrets` | none (pure Node) |
-| Orchestration | `analyze_target` | none |
+| Orchestration / explain | `analyze_target` `explain` | none |
 | Reverse engineering | `bin_info` `bin_symbols` `bin_strings` `bin_disasm` `bin_dossier` `bin_decompile` `reconstruct` | binutils; IDA or Ghidra for decompile |
 | Pwn assist (authorized labs) | `pwn_checksec` `pwn_gadgets` `pwn_template` `pwn_cyclic` `pwn_gdbscript` `pwn_libc` | binutils; text-only |
 | Web assist | `web_recon` `har_analyze` `web_poc` | your HAR; text-only |

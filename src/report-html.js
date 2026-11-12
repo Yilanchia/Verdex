@@ -1,4 +1,5 @@
 import { computeSeveritySummary } from "./report.js";
+import { plainExplanation } from "./explain.js";
 
 const SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
 const SEV_COLOR = { critical: "#ff727e", high: "#f3b860", medium: "#53d9ee", low: "#9b8cff", info: "#8996aa" };
@@ -23,6 +24,7 @@ export function renderReportHtml(analysis, brief = null) {
   const findingCards = findings.length
     ? findings.map((f, i) => renderFinding(f, i)).join("")
     : `<div class="empty">本轮没有产出候选。</div>`;
+  const plainSummary = renderPlainSummary(findings);
 
   return `<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8">
@@ -45,6 +47,7 @@ export function renderReportHtml(analysis, brief = null) {
     <div class="kpi total"><div class="kpi-num">${summary.total}</div><div class="kpi-label">候选合计</div></div>
   </section>
   <p class="disclaimer">所有候选均为待人工复核的静态推断，非已验证漏洞；严重度为初步评级，需结合运行时上下文确认。本报告只读取本地文件证据，不发起网络请求。</p>
+  ${plainSummary}
   <h2>待复核候选</h2>
   ${findingCards}
 </main>
@@ -75,6 +78,39 @@ function renderFinding(f, index) {
     ${evidence ? `<div class="ev-wrap">${evidence}</div>` : ""}
     <div class="f-fix"><strong>修复方向：</strong>${esc(f.fix || "结合实际数据流和权限边界修复。")}</div>
   </article>`;
+}
+
+function renderPlainSummary(findings) {
+  if (!findings.length) return "";
+  const high = findings
+    .filter((finding) => ["critical", "high"].includes(String(finding.severity || "").toLowerCase()))
+    .slice(0, 5);
+  const intro = high.length
+    ? "这一节不讲术语：每条高危候选用三句话说明「这是什么 / 为什么要紧 / 该怎么办」。技术细节与证据见下一节。"
+    : "本轮没有高危候选；下面的中低危候选仍建议按证据人工复核。";
+  const cards = high.map((f, index) => {
+    const plain = plainExplanation(f);
+    const sev = String(f.severity || "info").toLowerCase();
+    return `
+    <article class="plain-card" style="--sev:${SEV_COLOR[sev]}">
+      <div class="plain-head">
+        <span class="sev-tag">${esc((f.severity || "info").toUpperCase())}</span>
+        <span class="plain-title">${index + 1}. ${esc(f.title || plain.rule_id)}</span>
+        <code>${esc(f.file)}:${esc(f.line)}</code>
+      </div>
+      <dl>
+        <div><dt>这是什么</dt><dd>${esc(plain.what)}</dd></div>
+        <div><dt>为什么要紧</dt><dd>${esc(plain.why)}</dd></div>
+        <div><dt>该怎么办</dt><dd>${esc(plain.fix)}</dd></div>
+      </dl>
+    </article>`;
+  }).join("");
+  return `
+  <section class="plain">
+    <h2>给非技术读者</h2>
+    <p class="plain-intro">${esc(intro)}</p>
+    <div class="plain-cards">${cards}</div>
+  </section>`;
 }
 
 const STYLE = `
@@ -110,6 +146,16 @@ h2{margin:28px 0 14px;font-size:16px}
 .ev pre{margin:0;background:rgba(4,7,12,.6);border:1px solid var(--line);border-radius:7px;padding:9px 11px;overflow-x:auto;font-size:12px;color:#cfe3ea}
 .f-fix{font-size:13px;color:#cde6cf;background:rgba(104,213,161,.06);border-radius:7px;padding:9px 11px}
 .empty{color:var(--muted);text-align:center;padding:30px}
+.plain-intro{color:var(--muted);font-size:13px;margin:0 0 14px}
+.plain-cards{display:grid;gap:12px}
+.plain-card{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--sev,var(--muted));border-radius:10px;padding:14px 16px}
+.plain-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-weight:600;margin-bottom:10px}
+.plain-head code{margin-left:auto;color:var(--cyan);font-size:11px;font-family:ui-monospace,monospace;word-break:break-all}
+.plain-title{font-weight:600}
+.plain dl{margin:0;display:grid;gap:6px}
+.plain dl>div{display:grid;grid-template-columns:68px 1fr;gap:10px}
+.plain dt{color:var(--muted);font-size:12px}
+.plain dd{margin:0;font-size:13px}
 footer{text-align:center;color:var(--muted);font-size:11px;padding:24px;border-top:1px solid var(--line);margin-top:30px}
 @media(max-width:720px){.kpis{grid-template-columns:repeat(3,1fr)}}
 `;

@@ -1,6 +1,6 @@
 # Verdex Tool Reference · 工具参考
 
-Verdex exposes **34 read-only tools** over MCP (stdio + JSON-RPC 2.0). Every tool:
+Verdex exposes **35 read-only tools** over MCP (stdio + JSON-RPC 2.0). Every tool:
 
 - returns a JSON object with a `schema` / `tool` marker and `limitations`;
 - is **text-only**: no tool sends a network request, executes a target, attaches to a process, or injects code;

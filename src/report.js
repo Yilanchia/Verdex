@@ -1,3 +1,5 @@
+import { plainExplanation } from "./explain.js";
+
 const SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
 const SEVERITY_LEVELS = ["critical", "high", "medium", "low", "info"];
 const SEVERITY_LABELS = { critical: "严重", high: "高", medium: "中", low: "低", info: "信息" };
@@ -37,6 +39,7 @@ export function renderReport(analysis, brief = null) {
     "",
     "本报告只整理作业夹中的本地文件证据。静态关系和数据流属于 inferred，不能单独证明运行时可达、权限缺失或漏洞可利用。",
     "",
+    ...renderPlainSection(findings),
   ];
   if (brief) {
     lines.push("## 范围", "", `- include：${brief.scope.include.join(", ")}`, `- exclude：${brief.scope.exclude.join(", ") || "（无）"}`, `- 红线：${brief.redlines.join(", ")}`, "");
@@ -84,6 +87,31 @@ export function renderReport(analysis, brief = null) {
     lines.push("", "#### 修复方向", "", finding.fix || "结合实际数据流和权限边界修复。", "");
   }
   return lines.join("\n");
+}
+
+function renderPlainSection(findings = []) {
+  if (!findings.length) return [];
+  const high = findings
+    .filter((finding) => ["critical", "high"].includes(String(finding.severity || "").toLowerCase()))
+    .slice(0, 5);
+  const lines = ["## 给非技术读者", ""];
+  if (!high.length) {
+    lines.push("本轮没有高危候选；下面的中低危候选仍建议按证据人工复核。", "");
+    return lines;
+  }
+  lines.push("> 这一节不讲术语：每条高危候选用三句话说明「这是什么 / 为什么要紧 / 该怎么办」，技术细节与证据见后文。", "");
+  for (const [index, finding] of high.entries()) {
+    const plain = plainExplanation(finding);
+    lines.push(
+      `### ${index + 1}. ${finding.title || plain.rule_id} · \`${finding.file}:${finding.line}\``,
+      "",
+      `- **这是什么**：${plain.what}`,
+      `- **为什么要紧**：${plain.why}`,
+      `- **该怎么办**：${plain.fix}`,
+      "",
+    );
+  }
+  return lines;
 }
 
 function reviewStatusLabel(value) {

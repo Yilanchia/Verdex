@@ -87,7 +87,7 @@ test("bin/verdex-mcp.mjs speaks MCP over stdio", async () => {
 
     child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list" })}\n`);
     const list = JSON.parse(await nextLine());
-    assert.ok(list.result.tools.length >= 34, "full tool surface is advertised");
+    assert.ok(list.result.tools.length >= 35, "full tool surface is advertised");
     assert.ok(list.result.tools.every((tool) => tool.annotations.openWorldHint === false));
     assert.ok(list.result.tools.every((tool) => tool.annotations.destructiveHint === false));
     assert.ok(list.result.tools.some((tool) => tool.name === "analyze_target"));
@@ -103,7 +103,7 @@ test("doctor reports local backends and a tool surface without network access", 
   assert.equal(report.package.name, "verdex");
   assert.equal(report.package.version, pkg.version);
   assert.ok(Number(report.runtime.node.split(".")[0]) >= 20, "doctor requires Node 20+");
-  assert.ok(report.runtime.tools_visible >= 34);
+  assert.ok(report.runtime.tools_visible >= 35);
   assert.ok(Array.isArray(report.backends) && report.backends.length >= 5);
   for (const backend of report.backends) {
     assert.ok(["ok", "partial", "missing"].includes(backend.status), `${backend.id} status`);
