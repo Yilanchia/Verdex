@@ -323,7 +323,7 @@ const JADX_CANDIDATES = [
   "/usr/local/bin/jadx",
 ];
 
-function findJadx() {
+export function findJadx() {
   const env = process.env.VERDEX_JADX;
   for (const c of [env, ...JADX_CANDIDATES].filter(Boolean)) {
     try { if (fs.statSync(c).isFile()) return c; } catch { /* keep looking */ }

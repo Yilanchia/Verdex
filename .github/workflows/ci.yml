@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '${{ matrix.node }}'
+          cache: npm
+      # bin_info / bin_symbols / bin_strings / bin_disasm shell out to binutils;
+      # install them explicitly instead of relying on the runner image.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends binutils file
+      - run: npm ci
+      - run: npm test
+
+  package:
+    name: package (npx entry)
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # The published tarball must contain the runtime entry points only.
+      - run: npm pack --dry-run
+      - name: Smoke-test the published tarball (verdex + verdex-mcp)
+        run: |
+          set -euo pipefail
+          TARBALL="$(npm pack --silent | tail -n 1)"
+          mkdir -p /tmp/verdex-smoke && cd /tmp/verdex-smoke
+          npm init -y >/dev/null
+          npm install "$GITHUB_WORKSPACE/$TARBALL" >/dev/null
+          npx --no-install verdex --version
+          printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05"}}' \
+            | timeout 20 npx --no-install verdex-mcp \
+            | head -n 1 | grep -q '"serverInfo"'
+          echo "npx entry points OK"

@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import path from "node:path";
 import { extractAssets } from "./assets.js";
 import { buildCodeGraph } from "./graph.js";
@@ -6,8 +7,10 @@ import { loadBrief } from "./brief.js";
 import { collectOsint } from "./osint.js";
 import { writeRun } from "./store.js";
 import { collectWorkspace, resolveRoot } from "./workspace.js";
+import { packageInfo } from "./package-info.js";
 
-const command = process.argv[2] || "scan";
+const argv = process.argv.slice(2);
+const command = argv[0] || "help";
 process.stdout.on("error", (error) => {
   if (error.code === "EPIPE") process.exit(0);
   throw error;
@@ -16,31 +19,82 @@ process.stdout.on("error", (error) => {
 if (command === "mcp") {
   const { startMcpServer } = await import("./mcp.js");
   startMcpServer();
+} else if (command === "help" || command === "--help" || command === "-h") {
+  printHelp();
+} else if (command === "version" || command === "--version" || command === "-v") {
+  process.stdout.write(`${packageInfo().version}\n`);
+} else if (command === "doctor") {
+  const { doctor } = await import("./doctor.js");
+  const report = await doctor();
+  if (argv.includes("--json")) process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+  else process.stdout.write(formatDoctor(report));
 } else {
   await runOnce();
 }
 
 async function runOnce() {
-const root = resolveRoot(process.argv[3] || process.cwd());
-const workspace = collectWorkspace(root);
-let output;
-if (command === "assets") output = extractAssets(workspace);
-else if (command === "map") output = buildCodeGraph(root, { workspace, includeFlows: true });
-else if (command === "osint") {
-  const brief = process.argv[4] ? loadBrief(path.resolve(process.argv[4])) : null;
-  output = collectOsint(workspace, brief ? { ...brief.osint } : {});
+  const root = resolveRoot(argv[1] || process.cwd());
+  const workspace = collectWorkspace(root);
+  let output;
+  if (command === "assets") output = extractAssets(workspace);
+  else if (command === "map") output = buildCodeGraph(root, { workspace, includeFlows: true });
+  else if (command === "osint") {
+    const brief = argv[2] ? loadBrief(path.resolve(argv[2])) : null;
+    output = collectOsint(workspace, brief ? { ...brief.osint } : {});
+  } else if (command === "scan") {
+    const brief = argv[2] ? loadBrief(path.resolve(argv[2])) : null;
+    output = analyzeProject(root, brief ? { brief } : {});
+  } else if (command === "report") {
+    const outputDirectory = path.resolve(argv[2] || path.join(root, ".verdex"));
+    const briefPath = argv[3];
+    const brief = briefPath ? loadBrief(path.resolve(briefPath)) : null;
+    const analysis = analyzeProject(root, brief ? { brief } : {});
+    output = writeRun(analysis, outputDirectory, brief);
+  } else throw new Error(`未知命令 / Unknown command: ${command}。运行 verdex help 查看全部命令。`);
+  process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
 }
-else if (command === "scan") {
-  const brief = process.argv[4] ? loadBrief(path.resolve(process.argv[4])) : null;
-  output = analyzeProject(root, brief ? { brief } : {});
+
+function printHelp() {
+  const { version } = packageInfo();
+  process.stdout.write(`verdex ${version} — evidence-first local security research toolset
+
+Usage / 用法:
+  verdex <command> [args]
+  verdex-mcp                     # start the MCP server (stdio), for agents
+
+Commands / 命令:
+  scan <dir> [brief.json]        Static analysis: assets, code graph, rules, dataflows
+  assets <dir>                   Domains/URLs/IPs with file:line evidence
+  map <dir>                      Code graph: files, functions, routes, calls
+  osint <dir> [brief.json]       Local OSINT, redacted by default
+  report <dir> [out] [brief]     Immutable run snapshot (JSON / MD / HTML / SARIF)
+  doctor [--json]                Check Node + optional backends (IDA/Ghidra/jadx/...)
+  mcp                            Start the MCP server over stdio
+  help | --help                  Show this help
+  version | --version            Print the version
+
+Everything is read-only: Verdex never executes a target and never sends a
+network request. Exploit/PoC scaffolding is text-only and requires an explicit
+authorized-target declaration; you run every command yourself, in scope.
+全部只读:不执行目标、不发网络请求;利用/验证脚手架只产出文本,必须声明授权目标,
+由你在授权范围内亲自运行。
+`);
 }
-else if (command === "report") {
-  const outputDirectory = path.resolve(process.argv[4] || path.join(root, ".verdex"));
-  const briefPath = process.argv[5];
-  const brief = briefPath ? loadBrief(path.resolve(briefPath)) : null;
-  const analysis = analyzeProject(root, brief ? { brief } : {});
-  output = writeRun(analysis, outputDirectory, brief);
-}
-else throw new Error(`未知命令：${command}`);
-process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+
+function formatDoctor(report) {
+  const lines = [
+    `Verdex ${report.package.version} · Node ${report.runtime.node} · ${report.runtime.platform}/${report.runtime.arch} · profile ${report.runtime.profile} · ${report.runtime.tools_visible} tools`,
+    "",
+    "Backends / 可选后端:",
+  ];
+  for (const backend of report.backends) {
+    const mark = backend.status === "ok" ? "[ok]" : backend.status === "partial" ? "[~] " : "[--]";
+    const where = backend.path ? ` ${backend.path}` : backend.detail ? ` ${backend.detail}` : "";
+    lines.push(`  ${mark} ${backend.id.padEnd(10)}${backend.label}${where}`);
+    if (backend.status !== "ok" && backend.hint) lines.push(`        ↳ ${backend.hint}`);
+  }
+  lines.push("", `Summary: ${report.summary.ok} ok, ${report.summary.partial} partial, ${report.summary.missing} missing (nothing required except Node >= 20).`);
+  for (const step of report.next_steps) lines.push(`  - ${step}`);
+  lines.push("", "All checks are local and read-only; doctor sends no network requests.");
+  return `${lines.join("\n")}\n`;
 }

@@ -19,9 +19,15 @@ import { FRIDA_TOOLS } from "./frida.js";
 import { DOTNET_TOOLS } from "./dotnet.js";
 import { ELECTRON_TOOLS } from "./electron.js";
 import { PROOF_TOOLS } from "./proof.js";
+import { packageInfo } from "./package-info.js";
 
 const PROTOCOL_VERSION = "2024-11-05";
-const SERVER_INFO = { name: "verdex", version: "0.1.0" };
+const SERVER_INFO = { name: "verdex", version: packageInfo().version };
+
+// Sent in the initialize result. Hosts surface this to the model, so it is the
+// cheapest place to state the safety model and the recommended first call.
+const SERVER_INSTRUCTIONS =
+  "Verdex is a read-only, text-only local security research toolset. It never executes targets, never sends network requests, and never attacks anything. Start with `analyze_target` (a path or an authorized domain) to get a recommended tool chain, then call the suggested tools. Every finding is a candidate for human review, not a confirmed vulnerability. Pwn/web/frida/poc tools require an explicit authorized-target declaration and only emit text you run yourself.";
 
 const ROOT_SCHEMA = {
   type: "object",
@@ -137,6 +143,12 @@ function annotationsFor(name) {
 }
 const TOOL_MAP = new Map(ALL_TOOLS.map((tool) => [tool.name, tool]));
 
+// The exact tool surface advertised to the host (respecting VERDEX_PROFILE).
+// Shared by tools/list and `verdex doctor` so both always agree.
+export function toolCatalog() {
+  return visibleTools().map(({ name, description, inputSchema }) => ({ name, description, inputSchema, annotations: annotationsFor(name) }));
+}
+
 function ok(id, result) {
   return { jsonrpc: "2.0", id, result };
 }
@@ -147,13 +159,13 @@ function fail(id, code, message) {
 
 async function callTool(id, params) {
   const tool = TOOL_MAP.get(params?.name);
-  if (!tool) return fail(id, -32602, `未知工具：${params?.name}`);
+  if (!tool) return fail(id, -32602, `未知工具 / Unknown tool: ${params?.name}`);
   const args = params?.arguments || {};
   try {
     const output = await tool.run(args);
     return ok(id, { content: [{ type: "text", text: JSON.stringify(output, null, 2) }] });
   } catch (error) {
-    return ok(id, { isError: true, content: [{ type: "text", text: `分析失败：${error.message}` }] });
+    return ok(id, { isError: true, content: [{ type: "text", text: `分析失败 / Analysis failed: ${error.message}` }] });
   }
 }
 
@@ -161,14 +173,19 @@ async function callTool(id, params) {
 export async function dispatch(message) {
   const { id, method, params } = message || {};
   if (method === "initialize") {
-    return ok(id, { protocolVersion: params?.protocolVersion || PROTOCOL_VERSION, capabilities: { tools: {} }, serverInfo: SERVER_INFO });
+    return ok(id, {
+      protocolVersion: params?.protocolVersion || PROTOCOL_VERSION,
+      capabilities: { tools: {} },
+      serverInfo: SERVER_INFO,
+      instructions: SERVER_INSTRUCTIONS,
+    });
   }
   if (method === "tools/list") {
-    return ok(id, { tools: visibleTools().map(({ name, description, inputSchema }) => ({ name, description, inputSchema, annotations: annotationsFor(name) })) });
+    return ok(id, { tools: toolCatalog() });
   }
   if (method === "tools/call") return callTool(id, params);
   if (method === "ping") return ok(id, {});
-  if (id !== undefined && id !== null) return fail(id, -32601, `不支持的方法：${method}`);
+  if (id !== undefined && id !== null) return fail(id, -32601, `不支持的方法 / Unsupported method: ${method}`);
   return null;
 }
 

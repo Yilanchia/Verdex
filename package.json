@@ -1,16 +1,53 @@
 {
-  "name": "verdex-workbench",
-  "version": "0.1.0",
-  "private": true,
+  "name": "verdex",
+  "version": "0.2.0",
   "type": "module",
-  "description": "Evidence-first local vulnerability research workbench",
+  "description": "Evidence-first local security research toolset, driven by LLMs over MCP.",
+  "author": "Yilanchia",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Yilanchia/Verdex.git"
+  },
+  "homepage": "https://github.com/Yilanchia/Verdex#readme",
+  "bugs": "https://github.com/Yilanchia/Verdex/issues",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "security",
+    "reverse-engineering",
+    "pwn",
+    "ctf",
+    "sast",
+    "vulnerability-research",
+    "static-analysis"
+  ],
+  "bin": {
+    "verdex": "src/cli.js",
+    "verdex-mcp": "bin/verdex-mcp.mjs"
+  },
+  "files": [
+    "src",
+    "web",
+    "bin",
+    "docs",
+    "README.md",
+    "README.en.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "LICENSE",
+    "verdex-mcp.patch.yml"
+  ],
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "selfcheck": "node --test tests/*.test.mjs",
+    "doctor": "node src/cli.js doctor",
     "map": "node src/cli.js map .",
     "osint": "node src/cli.js osint .",
     "scan": "node src/cli.js scan .",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "prepublishOnly": "npm test"
   },
   "engines": {
     "node": ">=20"

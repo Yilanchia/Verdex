@@ -116,7 +116,7 @@ const IDA_CANDIDATES = [
   "/usr/local/bin/idat64",
 ];
 
-function findIda() {
+export function findIda() {
   for (const candidate of [process.env.VERDEX_IDA, ...IDA_CANDIDATES].filter(Boolean)) {
     try {
       if (fs.statSync(candidate).isFile()) return candidate;
@@ -138,7 +138,7 @@ const GHIDRA_CANDIDATES = [
   "/usr/local/ghidra/support/analyzeHeadless",
 ];
 
-function findGhidra() {
+export function findGhidra() {
   const env = process.env.VERDEX_GHIDRA;
   const candidates = env ? [env, ...GHIDRA_CANDIDATES] : GHIDRA_CANDIDATES;
   for (const c of candidates) {

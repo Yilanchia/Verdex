@@ -34,14 +34,14 @@ export function isDotnetAssembly(file) {
   } catch { return false; }
 }
 
-function findDotnet() {
+export function findDotnet() {
   for (const c of [process.env.VERDEX_DOTNET, "C:\\Program Files\\dotnet\\dotnet.exe", "/usr/bin/dotnet", "/usr/local/bin/dotnet"].filter(Boolean)) {
     try { if (fs.statSync(c).isFile()) return c; } catch { /* keep looking */ }
   }
   return "dotnet"; // fall back to PATH
 }
 
-function findIlspy() {
+export function findIlspy() {
   for (const c of [process.env.VERDEX_ILSPY, "C:\\ilspycmd\\ilspycmd.dll", "/opt/ilspycmd/ilspycmd.dll"].filter(Boolean)) {
     try { if (fs.statSync(c).isFile()) return c; } catch { /* keep looking */ }
   }
