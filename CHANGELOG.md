@@ -47,6 +47,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- `verdex doctor` now probes `dotnet --list-runtimes` instead of `dotnet
+  --version`, so runtime-only .NET installs (no SDK) are reported as available —
+  the runtime is all `dotnet_decompile` needs to host ilspycmd.
 - Python AST analysis now tries `$PYTHON`, then `python3`, then `python`, instead
   of assuming `python` exists. Linux and CI images that only ship `python3` keep
   structured Python routes/definitions/dataflows; without any interpreter the

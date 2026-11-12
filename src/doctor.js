@@ -89,7 +89,9 @@ export async function doctor() {
   );
 
   const dotnet = findDotnet();
-  const dotnetProbe = await probe(dotnet, ["--version"]);
+  // Runtime-only installs (no SDK) reject `dotnet --version`; --list-runtimes
+  // works for both and is what ilspycmd actually needs.
+  const dotnetProbe = await probe(dotnet, ["--list-runtimes"]);
   const ilspy = findIlspy();
   backends.push(
     backend("dotnet", ".NET runtime (dotnet)", dotnetProbe.ok ? "ok" : "missing", {
@@ -97,7 +99,7 @@ export async function doctor() {
       detail: dotnetProbe.detail,
       env: "VERDEX_DOTNET",
       affects: ["dotnet_decompile"],
-      hint: "Needed to host ilspycmd for .NET decompilation.",
+      hint: "A runtime (not necessarily the SDK) is enough to host ilspycmd for .NET decompilation.",
     }),
   );
   backends.push(
