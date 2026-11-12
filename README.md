@@ -102,6 +102,10 @@ npx -y verdex-mcp
 3. `report` —— 存一份不可变快照,打开返回的 `report.html` 就能看到严重度看板与证据链。
 4. 想让人看懂?`explain` 把任意一条发现翻译成"这是什么 / 为什么要紧 / 该怎么办"。
 
+![报告中的「给非技术读者」摘要](docs/assets/report-plain.png)
+
+> 报告顶部会先给非技术读者一个三句话摘要(上图),证据链、CWE、置信度和修复方向在后面的候选卡片里。
+
 ```text
 $ node src/cli.js scan ./samples/demo
 { "schema": "VerdexProject/v1", "assets": { ... }, "scan": { "findings": [ ... ] } }

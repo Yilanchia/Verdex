@@ -80,6 +80,10 @@ DeepSeek Harness (`cordis.yml`, or use the bundled `verdex-mcp.patch.yml`):
 
 First run: ask the agent to call `analyze_target` with a local path (or an authorized domain), then follow the recommended chain (`scan` → `report` → open `report.html`), and use `explain` if a finding needs plain language.
 
+![The plain-language summary at the top of a Verdex report](docs/assets/report-plain.png)
+
+> Every report opens with a three-sentence summary for non-technical readers (above); evidence, CWE, confidence and fix direction follow in the candidate cards.
+
 ### CLI
 
 ```bash
