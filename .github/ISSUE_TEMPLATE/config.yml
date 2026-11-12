@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security issue in Verdex
+    url: https://github.com/Yilanchia/Verdex/security/advisories
+    about: Please report vulnerabilities privately, not as public issues.
+  - name: Usage and tool reference
+    url: https://github.com/Yilanchia/Verdex/blob/main/docs/tools.md
+    about: Inputs, backends and safety gates for all 34 tools.
+  - name: Responsible use
+    url: https://github.com/Yilanchia/Verdex/blob/main/README.md#安全模型三道闸--只读原则
+    about: Verdex is read-only and authorized-targets-only; unauthorized use is out of scope.
