@@ -84,11 +84,16 @@ names, argument names, or return shapes while translating.
 - Run `npm test` before pushing; CI runs Node 20/22/24 on Linux.
 - Update docs/CHANGELOG for user-visible changes.
 - Do not commit secrets, real customer data, or internal engagement notes.
-  Before pushing:
-
-```bash
-git grep -nE "AKIA[0-9A-Z]{16}|sk_live_|ghp_|BEGIN (RSA |EC )?PRIVATE KEY" -- . || echo clean
-```
+  Before pushing (this covers tests and docs too, not just `src/`):
+  ```bash
+  git grep -nE "AKIA[0-9A-Z]{16}|sk_live_[0-9A-Za-z]{20}|ghp_[0-9A-Za-z]{30}" -- . || echo clean
+  npm test   # tests/hygiene.test.mjs fails if engagement identifiers, local user paths or known leaked fragments reappear
+  ```
+  The hygiene test holds the project-specific blocklist (customer/project
+  names, leaked key fragments, Windows user-profile paths); add to it when you
+  find a new leak. Test fixtures must use clearly synthetic values
+  (`0123456789abcdef…`, `AKIAIOSFODNN7EXAMPLE`), never a value copied from an
+  engagement.
 
 - Do not add AI attribution lines to commits.
 

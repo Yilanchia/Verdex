@@ -45,6 +45,18 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - README restructured for a mixed audience: what it is, who it is for, a
   5-minute quickstart, the safety model, and a tool overview.
 
+### Security
+
+- Removed real engagement identifiers and credential values from the test
+  fixtures (they had been committed in earlier releases): the app key, the
+  signing salt and the location-secret value are now synthetic, and the sample
+  manifest path no longer embeds a project name. **If you cloned or forked this
+  repository before 0.2.0, treat those values as exposed and rotate them** —
+  they remain in git history until the history is rewritten.
+- Added `tests/hygiene.test.mjs`: a repo-wide guard that fails when engagement
+  identifiers, local user paths or the leaked fragments reappear in any tracked
+  file, including tests and docs.
+
 ### Fixed
 
 - `verdex doctor` now probes `dotnet --list-runtimes` instead of `dotnet

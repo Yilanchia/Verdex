@@ -762,8 +762,8 @@ test("AXML decoder rejects non-AXML and summarizes a real manifest when availabl
   // Deterministic: non-AXML buffer is rejected.
   assert.throws(() => decodeAxml(Buffer.from([0x50, 0x4b, 3, 4])), /AXML/);
   assert.throws(() => manifestSummary(Buffer.from([0, 1, 2, 3])));
-  // Opportunistic: if a real binary manifest is on disk, it must decode sanely.
-  const real = "D:/moodly/unpacked/AndroidManifest.xml";
+  // Opportunistic: if a sample binary manifest is in the repo, it must decode sanely.
+  const real = "tests/fixtures/AndroidManifest.xml";
   if (fs.existsSync(real)) {
     const s = decodeManifestFile(real);
     assert.ok(s.package && s.package.length > 0, "package decoded");
@@ -807,11 +807,11 @@ test("scanSecrets catches named key constants and signing salts (the hand-found 
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "verdex-s4-"));
   const q = String.fromCharCode(34);
   try {
-    const SALT = "sign-kailu-" + "855c74a88b8b494187c99b08b8c9a744";
-    const TAKU = "ad42845e8d50" + "cc54325c379c644487a75";
+    const SALT = "sign-demo-" + "0123456789abcdef0123456789abcdef";
+    const APPKEY = "0123456789abcdef" + "fedcba9876543210";
     fs.writeFileSync(path.join(root, "C.java"), [
-      `String TAKU_APP_KEY = ${q}${TAKU}${q};`,
-      `String LOCATION_SECRET = ${q}nFU9pbG8YQoAe1kFh+E7eyrdlSLglwEJeA0wwHB1j5o=${q};`,
+      `String DEMO_APP_KEY = ${q}${APPKEY}${q};`,
+      `String DEMO_SECRET = ${q}ZmFrZS1kZW1vLXNlY3JldC12YWx1ZS0xMjM0NTY3ODkw=${q};`,
       `String salt = ${q}&key=${SALT}${q};`,
     ].join("\n"), "utf8");
     const r = scanSecrets(root);
@@ -819,7 +819,7 @@ test("scanSecrets catches named key constants and signing salts (the hand-found 
     assert.ok(rules.has("named-key-constant"), "named key constant");
     assert.ok(rules.has("signing-salt"), "signing salt");
     assert.ok(r.finding_count >= 3);
-    assert.ok(!JSON.stringify(r).includes("855c74a88b8b"), "raw value must be redacted");
+    assert.ok(!JSON.stringify(r).includes("0123456789abcdef"), "raw value must be redacted");
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -995,7 +995,7 @@ test("scanSecrets triages findings by provable impact (direct vs conditional)", 
   const q = String.fromCharCode(34);
   try {
     const AWS = "AKIA" + "IOSFODNN7EXAMPLE";
-    const APPKEY = "ad42845e8d50" + "cc54325c379c644487a75";
+    const APPKEY = "0123456789abcdef" + "fedcba9876543210";
     fs.writeFileSync(path.join(root, "c.java"), [
       `String aws = ${q}${AWS}${q};`,                    // direct
       `String APP_KEY = ${q}${APPKEY}${q};`,             // conditional (client app key)
