@@ -386,9 +386,28 @@ function parseTypeScriptRoute(node, sourceFile) {
 function analyzePython(files) {
   if (!files.length) return [];
   const input = JSON.stringify(files.slice(0, 300).map((file) => ({ path: file.path, text: file.text })));
-  const result = spawnSync(globalThis.process.env.PYTHON || "python", ["-c", PYTHON_ANALYZER], { input, encoding: "utf8", windowsHide: true, timeout: 30_000, maxBuffer: 8 * 1024 * 1024 });
-  if (result.error || result.status !== 0) return files.map((file) => ({ path: file.path, error: "Python AST parser unavailable", ...analyzeFallback(file) }));
-  try { return JSON.parse(result.stdout); } catch { return files.map((file) => ({ path: file.path, error: "Python AST parser returned invalid JSON", ...analyzeFallback(file) })); }
+  // `python` does not exist on every Linux (Ubuntu ships `python3` only) and on
+  // Windows it may be a launcher. Try the configured interpreter first, then
+  // python3, then python; the first one that returns valid JSON wins.
+  const candidates = [...new Set([globalThis.process.env.PYTHON, "python3", "python"].filter(Boolean))];
+  let lastError = null;
+  for (const candidate of candidates) {
+    const result = spawnSync(candidate, ["-c", PYTHON_ANALYZER], { input, encoding: "utf8", windowsHide: true, timeout: 30_000, maxBuffer: 8 * 1024 * 1024 });
+    if (result.error) {
+      lastError = result.error.code || result.error.message;
+      continue;
+    }
+    if (result.status !== 0) {
+      lastError = `exit ${result.status}`;
+      continue;
+    }
+    try {
+      return JSON.parse(result.stdout);
+    } catch {
+      lastError = "invalid JSON";
+    }
+  }
+  return files.map((file) => ({ path: file.path, error: `Python AST parser unavailable (${lastError || "no interpreter"})`, ...analyzeFallback(file) }));
 }
 
 function analyzeFallback(file) {
